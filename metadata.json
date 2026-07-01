@@ -1,0 +1,6 @@
+{
+  "name": "Berita Madiun",
+  "description": "Portal Informasi Warga Madiun - Berita Terkini, Lowongan Kerja, Pasar Jual Beli UMKM, dan Informasi Kejadian/Viral.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

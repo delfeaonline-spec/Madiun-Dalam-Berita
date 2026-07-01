@@ -1,0 +1,1956 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Newspaper, 
+  Briefcase, 
+  ShoppingBag, 
+  AlertTriangle, 
+  Search, 
+  Filter, 
+  Clock, 
+  Plus, 
+  Send, 
+  MessageSquare, 
+  ThumbsUp, 
+  ChevronRight, 
+  MapPin, 
+  Calendar, 
+  DollarSign, 
+  X, 
+  CheckCircle2, 
+  Image as ImageIcon, 
+  UploadCloud, 
+  User, 
+  Share2, 
+  ExternalLink,
+  Info,
+  Phone,
+  Tag,
+  ThumbsDown,
+  AlertCircle
+} from 'lucide-react';
+
+// ==========================================
+// TYPES & INTERFACES
+// ==========================================
+
+interface NewsItem {
+  id: number;
+  title: string;
+  category: 'Pembangunan' | 'Kuliner' | 'Budaya' | 'Ekonomi' | 'Pendidikan';
+  date: string;
+  readTime: string;
+  summary: string;
+  content: string;
+  author: string;
+  imageBg: string; // custom gradient/styling
+}
+
+interface JobItem {
+  id: number;
+  title: string;
+  company: string;
+  location: string;
+  type: 'Full-time' | 'Part-time' | 'Freelance';
+  salary: string;
+  requirements: string[];
+  postedAt: string;
+}
+
+interface UMKMItem {
+  id: number;
+  name: string;
+  price: number;
+  category: 'Makanan' | 'Kerajinan' | 'Jasa' | 'Fashion';
+  description: string;
+  contact: string;
+  seller: string;
+  rating: number;
+  imageBg: string;
+}
+
+interface CitizenReport {
+  id: number;
+  title: string;
+  reporter: string;
+  category: 'Lalu Lintas' | 'Kehilangan' | 'Darurat' | 'Event' | 'Fasilitas';
+  time: string;
+  urgency: 'Rendah' | 'Sedang' | 'Tinggi';
+  upvotes: number;
+  comments: { id: number; author: string; text: string; time: string }[];
+  description: string;
+  isUpvoted?: boolean;
+}
+
+// ==========================================
+// INITIAL MOCK DATA
+// ==========================================
+
+const INITIAL_NEWS: NewsItem[] = [
+  {
+    id: 1,
+    title: "Revitalisasi Pahlawan Street Center Tahap III Dimulai, Madiun Semakin Memikat Wisatawan",
+    category: "Pembangunan",
+    date: "1 Jam yang lalu",
+    readTime: "4 Menit Baca",
+    summary: "Pemerintah Kota Madiun resmi memulai penataan koridor pedestrian tahap ketiga di Jl. Pahlawan untuk menyempurnakan replika ikon dunia dan memperlebar akses disabilitas.",
+    content: "Pemerintah Kota Madiun terus berbenah mempercantik wajah kota melalui kelanjutan mega proyek Pahlawan Street Center (PSC) tahap III. Proyek yang menjadi magnet wisata utama di wilayah barat Jawa Timur ini kini berfokus pada perluasan jalur ramah disabilitas, penambahan vegetasi peneduh, serta penyempurnaan replika ikon dunia seperti Patung Merlion dan Menara Eiffel.\n\nWalikota menyampaikan bahwa PSC tidak sekadar proyek estetika, melainkan motor penggerak ekonomi mikro baru. 'Dengan trotoar yang semakin lebar dan nyaman, wisatawan akan betah berjalan kaki, yang pada akhirnya akan mendongkrak omzet PKL dan pelaku UMKM kuliner di sepanjang koridor,' ujarnya.\n\nPekerjaan fisik dijadwalkan berlangsung selama 90 hari kalender dengan rekayasa lalu lintas yang minim guna memastikan aktivitas harian warga tetap berjalan kondusif. Warga dihimbau menggunakan jalur alternatif selama jam kerja konstruksi.",
+    author: "Rian Kuncoro",
+    imageBg: "from-emerald-800 to-teal-950"
+  },
+  {
+    id: 2,
+    title: "Festival Kuliner Nasi Pecel Pincuk Madiun 2026 Siap Digelar Pekan Ini di Alun-Alun",
+    category: "Kuliner",
+    date: "4 Jam yang lalu",
+    readTime: "3 Menit Baca",
+    summary: "Kembali hadir untuk melestarikan kuliner warisan leluhur, festival tahunan ini akan membagikan 5.000 pincuk nasi pecel gratis hasil kreasi paguyuban ulekan legendaris.",
+    content: "Kabar gembira bagi para pencinta kuliner! Festival Nasi Pecel Pincuk khas Madiun akan menyapa warga dan wisatawan mulai Jumat malam ini di Alun-Alun Utara Kota Madiun. Event tahunan berskala regional ini digadang-gadang menjadi festival kuliner pecel terbesar tahun ini dengan melibatkan lebih dari 120 perajin sambel pecel lokal.\n\nYang menarik, panitia menyelenggarakan program 'Satu Pincuk Kebersamaan' di mana pengunjung dapat menikmati hidangan pecel pincuk secara gratis pada hari Sabtu pagi mulai pukul 07.00 WIB. 'Kami ingin menegaskan kembali identitas Madiun sebagai Ibu Kota Pecel Dunia, sekaligus memperkenalkan varian sambel pecel organik rendah kalori inovasi warga lokal,' terang ketua panitia penyelenggara.\n\nSelain kuliner pecel, acara juga akan dimeriahkan oleh pentas tari tradisional Dongkrek dan pameran cinderamata khas Madiun.",
+    author: "Siti Rahmawati",
+    imageBg: "from-amber-700 to-orange-950"
+  },
+  {
+    id: 3,
+    title: "PT INKA Madiun Selesaikan Produksi 50 Kereta Penumpang Premium untuk Ekspor Selandia Baru",
+    category: "Ekonomi",
+    date: "Kemarin",
+    readTime: "5 Menit Baca",
+    summary: "Prestasi manufaktur nasional dari bumi Madiun. Pengiriman kloter pertama membuktikan keandalan rekayasa teknologi anak bangsa di pasar pasifik.",
+    content: "Industri perkeretaapian dalam negeri yang berpusat di Madiun, PT INKA (Persero), kembali membukukan prestasi gemilang di kancah global. Perseroan berhasil menyelesaikan perakitan 50 unit kereta penumpang tipe diesel elektrik dengan spesifikasi premium pesanan dari Selandia Baru.\n\nKereta-kereta ini dirancang khusus menggunakan baja antikarat kualitas tertinggi dengan sistem suspensi udara canggih guna menyesuaikan medan rel pegunungan di Selandia Baru. Direktur Utama PT INKA menyebut pencapaian ini sebagai tonggak sejarah baru dalam memperluas penetrasi pasar di wilayah Pasifik Barat.\n\n'Seluruh pengerjaan dikerjakan oleh putra-putri terbaik Madiun di pabrik utama kami. Ini membuktikan rantai pasok industri lokal kita telah memenuhi standar keamanan dan presisi tinggi internasional,' tegasnya saat pelepasan armada ekspor.",
+    author: "Budi Santoso",
+    imageBg: "from-blue-800 to-indigo-950"
+  },
+  {
+    id: 4,
+    title: "Seni Tradisional Dongkrek Resmi Ditetapkan sebagai Warisan Budaya Takbenda Nasional",
+    category: "Budaya",
+    date: "2 Hari yang lalu",
+    readTime: "3 Menit Baca",
+    summary: "Seni ritual pengusir wabah penyakit (pagebluk) asli dari Mejayan Madiun kini diakui sebagai warisan budaya nasional guna perlindungan dan pelestarian hukum.",
+    content: "Kementerian Pendidikan, Kebudayaan, Riset, dan Teknologi resmi menetapkan kesenian tradisional Dongkrek asal Kabupaten Madiun sebagai Warisan Budaya Takbenda (WBTb) Indonesia. Keputusan ini disambut suka cita oleh para pegiat budaya dan masyarakat Madiun yang telah berjuang merevitalisasi kesenian pengusir pagebluk ini selama berdekade.\n\nDongkrek merupakan seni pertunjukan ritual yang menampilkan topeng-topeng seram (raksasa/genderuwo) melambangkan angkara murka, berpasangan dengan topeng orang tua dan putri yang melambangkan kebaikan. Iringan musiknya yang unik, bersumber dari alat musik kayu berbunyi 'Drek-drek' dan kendang kuno 'Dung-dung', melahirkan nama seni Dongkrek.\n\nDengan penetapan ini, pemerintah daerah berkomitmen mengintegrasikan Dongkrek ke dalam kurikulum muatan lokal di tingkat SD dan SMP di seluruh wilayah Madiun guna menjaga regenerasi seniman muda.",
+    author: "Aris Munandar",
+    imageBg: "from-purple-800 to-fuchsia-950"
+  }
+];
+
+const INITIAL_JOBS: JobItem[] = [
+  {
+    id: 1,
+    title: "Barista & Cook Helper",
+    company: "Kopi Kakak Madiun",
+    location: "Jl. Ringroad Barat, Madiun",
+    type: "Full-time",
+    salary: "Rp 1.800.000 - Rp 2.200.000",
+    requirements: [
+      "Pengalaman minimal 1 tahun di bidang Food & Beverage",
+      "Pria/Wanita, usia maksimal 26 tahun",
+      "Mampu bekerja sama dalam tim dan bersedia kerja sistem shift",
+      "Memiliki kepribadian ramah, komunikatif, dan berpenampilan bersih"
+    ],
+    postedAt: "Hari ini"
+  },
+  {
+    id: 2,
+    title: "Content Creator & Live Host TikTok",
+    company: "Brem Cap Suling Mas",
+    location: "Kawasan Industri Caruban, Madiun",
+    type: "Part-time",
+    salary: "Rp 1.500.000 + Bonus Komisi",
+    requirements: [
+      "Percaya diri di depan kamera dan komunikatif",
+      "Menguasai teknik dasar editing video HP (CapCut/TikTok)",
+      "Memiliki minat besar di bidang pemasaran kuliner tradisional",
+      "Jadwal fleksibel (3-4 jam per hari, 5 hari seminggu)"
+    ],
+    postedAt: "1 Hari yang lalu"
+  },
+  {
+    id: 3,
+    title: "Staff Kasir & Admin Toko",
+    company: "Pecel Pojok Swalayan",
+    location: "Jl. Cokroaminoto No. 42, Madiun",
+    type: "Full-time",
+    salary: "Rp 1.950.000 - Rp 2.100.000",
+    requirements: [
+      "Pendidikan minimal SMA/SMK sederajat",
+      "Jujur, teliti, bertanggung jawab terhadap uang kasir",
+      "Menguasai dasar Microsoft Excel untuk input penjualan harian",
+      "Diutamakan domisili dekat area Kota Madiun"
+    ],
+    postedAt: "2 Hari yang lalu"
+  },
+  {
+    id: 4,
+    title: "Guru Les Privat SD & SMP (Matematika / IPA)",
+    company: "Bimbel Cerdas Madiun",
+    location: "Panggilan Rumah (Area Kartoharjo & Taman)",
+    type: "Freelance",
+    salary: "Rp 60.000 - Rp 85.000 / Sesi",
+    requirements: [
+      "Mahasiswa aktif atau lulusan S1 keguruan/sains",
+      "Memiliki kendaraan pribadi untuk mobilitas ke rumah siswa",
+      "Sabar, telaten, dan mampu menjelaskan konsep dengan bahasa yang mudah dipahami",
+      "Menyukai dunia anak-anak"
+    ],
+    postedAt: "3 Hari yang lalu"
+  }
+];
+
+const INITIAL_UMKM: UMKMItem[] = [
+  {
+    id: 1,
+    name: "Sambel Pecel Asli Madiun 'Mbak Sri'",
+    price: 15000,
+    category: "Makanan",
+    description: "Sambel pecel legendaris yang dibuat menggunakan kacang tanah oven berkualitas (non-minyak) dengan resep asli bumbu rempah daun jeruk purut. Tersedia tingkat kepedasan: Sedang, Pedas, dan Super Pedas. Kemasan kedap udara higienis tahan hingga 3 bulan.",
+    contact: "6281234567890",
+    seller: "Ibu Sri Hartati",
+    rating: 4.9,
+    imageBg: "bg-amber-100 text-amber-800"
+  },
+  {
+    id: 2,
+    name: "Brem Bulat Premium Rasa Anggur & Cokelat",
+    price: 12000,
+    category: "Makanan",
+    description: "Bahan ketan pilihan yang difermentasi sempurna menghasilkan brem keping bulat bertekstur super lembut yang lumer seketika di lidah. Kini hadir dengan inovasi rasa modern: Anggur lokal dan Cokelat manis khas Jawa Timur.",
+    contact: "6282234567891",
+    seller: "CV. Brem Indah Madiun",
+    rating: 4.8,
+    imageBg: "bg-fuchsia-100 text-fuchsia-800"
+  },
+  {
+    id: 3,
+    name: "Batik Tulis Tangan Motif Serat Jati Wilis",
+    price: 175000,
+    category: "Kerajinan",
+    description: "Kain batik katun primisima halus berukuran 2.2 x 1.1 meter. Digambar manual menggunakan canting tulis dengan motif eksklusif Serat Kayu Jati dan Pesona Daun Wilis khas lereng gunung Madiun. Warna awet dan tidak luntur.",
+    contact: "6285234567892",
+    seller: "Griya Batik Madumuda",
+    rating: 5.0,
+    imageBg: "bg-emerald-100 text-emerald-800"
+  },
+  {
+    id: 4,
+    name: "Jasa Cuci AC & Reparasi Elektronik 'Suhu Dingin'",
+    price: 65000,
+    category: "Jasa",
+    description: "Melayani pembersihan (cuci) AC rumah/kantor, tambah freon, perbaikan AC tidak dingin, kulkas bising, atau mesin cuci error. Teknisi profesional bersertifikat, jujur, cepat tanggap, langsung datang ke lokasi Anda di seluruh penjuru Madiun.",
+    contact: "6289234567893",
+    seller: "Mas Danang Prasetyo",
+    rating: 4.7,
+    imageBg: "bg-blue-100 text-blue-800"
+  }
+];
+
+const INITIAL_REPORTS: CitizenReport[] = [
+  {
+    id: 1,
+    title: "Kemacetan Panjang di Perlintasan KA Sukosari Akibat Antrean Kereta Barang",
+    reporter: "Danang W.",
+    category: "Lalu Lintas",
+    time: "30 Menit yang lalu",
+    urgency: "Sedang",
+    upvotes: 42,
+    comments: [
+      { id: 1, author: "Giri Nugroho", text: "Betul sekali, tadi terjebak hampir 20 menit di sana. Sebaiknya warga yang mau ke timur lewat jalur lingkar saja.", time: "15 Menit yang lalu" },
+      { id: 2, author: "Rika Amelia", text: "Maklum, jam-jam sibuk pulang kantor juga.", time: "10 Menit yang lalu" }
+    ],
+    description: "Arus lalu lintas dari arah terminal menuju Sukosari terpantau padat merayap cenderung macet total sore ini. Antrean kendaraan didominasi motor dan truk akibat pintu perlintasan KA menutup dua kali berturut-turut untuk lewatnya rangkaian kereta logistik.",
+    isUpvoted: false
+  },
+  {
+    id: 2,
+    title: "Ditemukan Dompet Kulit Hitam Atas Nama Bambang Hermawan di Alun-Alun",
+    reporter: "Linda Septia",
+    category: "Kehilangan",
+    time: "2 Jam yang lalu",
+    urgency: "Rendah",
+    upvotes: 18,
+    comments: [
+      { id: 1, author: "Hendra Wijaya", text: "Up biar cepat ketemu orangnya! Semoga segera sampai ke pemilik asli.", time: "1 Jam yang lalu" }
+    ],
+    description: "Bagi yang merasa kehilangan dompet kulit hitam sore tadi di dekat area bermain anak Alun-Alun Madiun, berisi KTP atas nama Bambang Hermawan (Alamat: Mangunharjo, Madiun), SIM A, dan beberapa kartu ATM. Saat ini dompet saya amankan. Hubungi saya di kolom komentar untuk verifikasi isi dompet.",
+    isUpvoted: false
+  },
+  {
+    id: 3,
+    title: "Genangan Air Setinggi 30cm di Jalan Mastrip Setelah Hujan Deras 2 Jam",
+    reporter: "Agus Setiawan",
+    category: "Darurat",
+    time: "3 Jam yang lalu",
+    urgency: "Tinggi",
+    upvotes: 112,
+    comments: [
+      { id: 1, author: "Eko S.", text: "Hati-hati banyak lubang tertutup genangan air di depan kampus IKIP lama.", time: "2 Jam yang lalu" },
+      { id: 2, author: "Wahyu R.", text: "Dinas Pekerjaan Umum harus segera bersihkan saluran drainase tersumbat di kawasan itu.", time: "1 Jam yang lalu" }
+    ],
+    description: "Hujan dengan intensitas tinggi yang mengguyur sejak pukul 14.00 WIB menyebabkan banjir luapan selokan di Jalan Mastrip. Banyak sepeda motor mogok karena nekat menerjang air. Pengendara roda dua disarankan menghindari rute ini sementara waktu.",
+    isUpvoted: false
+  }
+];
+
+export default function App() {
+  // ==========================================
+  // STATE MANAGEMENT
+  // ==========================================
+  const [activeTab, setActiveTab] = useState<'news' | 'jobs' | 'umkm' | 'reports'>('news');
+  
+  // Data States (loaded from localStorage or fallback to initial data)
+  const [newsList, setNewsList] = useState<NewsItem[]>(() => {
+    const saved = localStorage.getItem('bm_news');
+    return saved ? JSON.parse(saved) : INITIAL_NEWS;
+  });
+  
+  const [jobsList, setJobsList] = useState<JobItem[]>(() => {
+    const saved = localStorage.getItem('bm_jobs');
+    return saved ? JSON.parse(saved) : INITIAL_JOBS;
+  });
+
+  const [umkmList, setUmkmList] = useState<UMKMItem[]>(() => {
+    const saved = localStorage.getItem('bm_umkm');
+    return saved ? JSON.parse(saved) : INITIAL_UMKM;
+  });
+
+  const [reportsList, setReportsList] = useState<CitizenReport[]>(() => {
+    const saved = localStorage.getItem('bm_reports');
+    return saved ? JSON.parse(saved) : INITIAL_REPORTS;
+  });
+
+  // Sync to LocalStorage
+  useEffect(() => {
+    localStorage.setItem('bm_news', JSON.stringify(newsList));
+  }, [newsList]);
+
+  useEffect(() => {
+    localStorage.setItem('bm_jobs', JSON.stringify(jobsList));
+  }, [jobsList]);
+
+  useEffect(() => {
+    localStorage.setItem('bm_umkm', JSON.stringify(umkmList));
+  }, [umkmList]);
+
+  useEffect(() => {
+    localStorage.setItem('bm_reports', JSON.stringify(reportsList));
+  }, [reportsList]);
+
+  // General Filter / Search States
+  const [searchQuery, setSearchQuery] = useState('');
+  const [newsFilter, setNewsFilter] = useState<string>('Semua');
+  const [jobTypeFilter, setJobTypeFilter] = useState<string>('Semua');
+  const [umkmCategoryFilter, setUmkmCategoryFilter] = useState<string>('Semua');
+  const [reportUrgencyFilter, setReportUrgencyFilter] = useState<string>('Semua');
+
+  // Interactive Detail Modals
+  const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
+  const [selectedJob, setSelectedJob] = useState<JobItem | null>(null);
+  const [selectedUMKM, setSelectedUMKM] = useState<UMKMItem | null>(null);
+
+  // Application/Form Submission States
+  const [isLokerModalOpen, setIsLokerModalOpen] = useState(false);
+  const [isUMKMModalOpen, setIsUMKMModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
+  // New item draft states
+  const [newReport, setNewReport] = useState({
+    title: '',
+    reporter: '',
+    category: 'Lainnya' as CitizenReport['category'],
+    urgency: 'Sedang' as CitizenReport['urgency'],
+    description: ''
+  });
+
+  const [newUMKM, setNewUMKM] = useState({
+    name: '',
+    price: '',
+    category: 'Makanan' as UMKMItem['category'],
+    description: '',
+    seller: '',
+    contact: ''
+  });
+
+  const [newJobApplication, setNewJobApplication] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    resumeName: '',
+    isDragging: false,
+    uploaded: false,
+    message: ''
+  });
+
+  // Citizen Report Comment Input State
+  const [commentInputs, setCommentInputs] = useState<{ [reportId: number]: string }>({});
+
+  // Toast System
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const triggerToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 4000);
+  };
+
+  // Local clock state (WIB - Western Indonesia Time is UTC + 7)
+  const [currentTime, setCurrentTime] = useState('');
+  useEffect(() => {
+    const updateTime = () => {
+      const options: Intl.DateTimeFormatOptions = {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZoneName: 'short'
+      };
+      // Explicit Indonesian locale
+      setCurrentTime(new Date().toLocaleDateString('id-ID', options));
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Reset search when switching tabs
+  const handleTabChange = (tab: typeof activeTab) => {
+    setActiveTab(tab);
+    setSearchQuery('');
+  };
+
+  // ==========================================
+  // HANDLERS
+  // ==========================================
+
+  // Citizen report interactions
+  const handleUpvote = (id: number) => {
+    setReportsList(prev => prev.map(report => {
+      if (report.id === id) {
+        const isUpvoted = !report.isUpvoted;
+        return {
+          ...report,
+          upvotes: isUpvoted ? report.upvotes + 1 : report.upvotes - 1,
+          isUpvoted
+        };
+      }
+      return report;
+    }));
+  };
+
+  const handleAddComment = (reportId: number, e: React.FormEvent) => {
+    e.preventDefault();
+    const text = commentInputs[reportId]?.trim();
+    if (!text) return;
+
+    setReportsList(prev => prev.map(report => {
+      if (report.id === reportId) {
+        return {
+          ...report,
+          comments: [
+            ...report.comments,
+            {
+              id: Date.now(),
+              author: "Warga Madiun (Anda)",
+              text,
+              time: "Baru saja"
+            }
+          ]
+        };
+      }
+      return report;
+    }));
+
+    setCommentInputs(prev => ({ ...prev, [reportId]: '' }));
+    triggerToast("Komentar warga berhasil ditambahkan!");
+  };
+
+  // Submit report form
+  const handleReportSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newReport.title || !newReport.reporter || !newReport.description) {
+      triggerToast("Mohon lengkapi semua field laporan!", "error");
+      return;
+    }
+
+    const report: CitizenReport = {
+      id: Date.now(),
+      title: newReport.title,
+      reporter: newReport.reporter,
+      category: newReport.category,
+      time: "Baru saja",
+      urgency: newReport.urgency,
+      upvotes: 1,
+      comments: [],
+      description: newReport.description,
+      isUpvoted: true
+    };
+
+    setReportsList(prev => [report, ...prev]);
+    setIsReportModalOpen(false);
+    setNewReport({
+      title: '',
+      reporter: '',
+      category: 'Lainnya',
+      urgency: 'Sedang',
+      description: ''
+    });
+    triggerToast("Laporan kejadian warga sukses diterbitkan! Terima kasih atas partisipasi Anda.");
+  };
+
+  // Submit UMKM form
+  const handleUMKMSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUMKM.name || !newUMKM.price || !newUMKM.seller || !newUMKM.contact) {
+      triggerToast("Mohon lengkapi seluruh kolom formulir UMKM!", "error");
+      return;
+    }
+
+    const gradients = [
+      "bg-amber-100 text-amber-800",
+      "bg-fuchsia-100 text-fuchsia-800",
+      "bg-emerald-100 text-emerald-800",
+      "bg-blue-100 text-blue-800",
+      "bg-orange-100 text-orange-800"
+    ];
+    const randomBg = gradients[Math.floor(Math.random() * gradients.length)];
+
+    const umkm: UMKMItem = {
+      id: Date.now(),
+      name: newUMKM.name,
+      price: parseFloat(newUMKM.price) || 0,
+      category: newUMKM.category,
+      description: newUMKM.description || "Tidak ada deskripsi produk.",
+      contact: newUMKM.contact.startsWith('0') ? '62' + newUMKM.contact.slice(1) : newUMKM.contact,
+      seller: newUMKM.seller,
+      rating: 5.0,
+      imageBg: randomBg
+    };
+
+    setUmkmList(prev => [umkm, ...prev]);
+    setIsUMKMModalOpen(false);
+    setNewUMKM({
+      name: '',
+      price: '',
+      category: 'Makanan',
+      description: '',
+      seller: '',
+      contact: ''
+    });
+    triggerToast("Produk/Jasa UMKM Anda sukses dipromosikan di portal!");
+  };
+
+  // Drag and drop for job resume upload
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setNewJobApplication(prev => ({ ...prev, isDragging: true }));
+  };
+
+  const handleDragLeave = () => {
+    setNewJobApplication(prev => ({ ...prev, isDragging: false }));
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      setNewJobApplication(prev => ({
+        ...prev,
+        resumeName: files[0].name,
+        uploaded: true,
+        isDragging: false
+      }));
+      triggerToast(`File resume ${files[0].name} berhasil ditarik.`);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      setNewJobApplication(prev => ({
+        ...prev,
+        resumeName: files[0].name,
+        uploaded: true
+      }));
+      triggerToast(`File resume ${files[0].name} terpilih.`);
+    }
+  };
+
+  const handleJobApplySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newJobApplication.name || !newJobApplication.email || !newJobApplication.phone || !newJobApplication.uploaded) {
+      triggerToast("Mohon lengkapi profil lamaran & unggah resume!", "error");
+      return;
+    }
+
+    // Simulate sending application
+    triggerToast(`Lamaran untuk ${selectedJob?.title} di ${selectedJob?.company} sukses dikirim! Pihak HRD akan menghubungi Anda.`);
+    setIsLokerModalOpen(false);
+    setNewJobApplication({
+      name: '',
+      email: '',
+      phone: '',
+      resumeName: '',
+      isDragging: false,
+      uploaded: false,
+      message: ''
+    });
+  };
+
+  // ==========================================
+  // SEARCH & FILTER LOGIC
+  // ==========================================
+  const filteredNews = newsList.filter(item => {
+    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          item.summary.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          item.content.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = newsFilter === 'Semua' || item.category === newsFilter;
+    return matchesSearch && matchesCategory;
+  });
+
+  const filteredJobs = jobsList.filter(item => {
+    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          item.company.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          item.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          item.requirements.some(req => req.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesType = jobTypeFilter === 'Semua' || item.type === jobTypeFilter;
+    return matchesSearch && matchesType;
+  });
+
+  const filteredUMKM = umkmList.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          item.seller.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = umkmCategoryFilter === 'Semua' || item.category === umkmCategoryFilter;
+    return matchesSearch && matchesCategory;
+  });
+
+  const filteredReports = reportsList.filter(item => {
+    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          item.reporter.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesUrgency = reportUrgencyFilter === 'Semua' || item.urgency === reportUrgencyFilter;
+    return matchesSearch && matchesUrgency;
+  });
+
+  return (
+    <div className="min-h-screen flex flex-col font-sans text-slate-800 bg-[#f8fafc]" id="app-container">
+      
+      {/* GLOBAL TOAST */}
+      {toast && (
+        <div 
+          id="toast-notification"
+          className={`fixed top-6 right-6 z-50 flex items-center p-4 rounded-xl shadow-xl border transition-all duration-300 max-w-md animate-bounce ${
+            toast.type === 'success' 
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-900' 
+              : toast.type === 'error'
+              ? 'bg-rose-50 border-rose-200 text-rose-900'
+              : 'bg-blue-50 border-blue-200 text-blue-900'
+          }`}
+        >
+          <div className="mr-3">
+            {toast.type === 'success' && <CheckCircle2 className="h-5 w-5 text-emerald-600" />}
+            {toast.type === 'error' && <AlertTriangle className="h-5 w-5 text-rose-600" />}
+            {toast.type === 'info' && <Info className="h-5 w-5 text-blue-600" />}
+          </div>
+          <p className="text-sm font-medium">{toast.message}</p>
+          <button onClick={() => setToast(null)} className="ml-4 text-slate-400 hover:text-slate-600">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {/* HEADER SECTION */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm" id="main-header">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between py-4 gap-4">
+            
+            {/* Logo and Tagline */}
+            <div className="flex items-center space-x-3" id="logo-block">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-emerald-200">
+                <Newspaper className="h-6 w-6" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 font-serif">Berita Madiun</h1>
+                  <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-white rounded">Kota Pendekar</span>
+                </div>
+                <p className="text-xs text-slate-500 font-medium">Portal Informasi Terpadu & Aspirasi Warga Madiun Raya</p>
+              </div>
+            </div>
+
+            {/* Weather & Live Clock Widget */}
+            <div className="flex items-center space-x-4 bg-slate-50 p-2.5 rounded-xl border border-slate-100 self-start md:self-auto" id="info-widget">
+              <div className="text-right hidden sm:block">
+                <p className="text-xs font-semibold text-slate-700">{currentTime || 'Memuat Waktu...'}</p>
+                <p className="text-[10px] text-slate-400 font-medium">Zona Waktu Indonesia Barat (WIB)</p>
+              </div>
+              <div className="h-8 w-px bg-slate-200 hidden sm:block"></div>
+              <div className="flex items-center space-x-2 text-slate-700">
+                <span className="text-xs font-bold">☁️ Madiun</span>
+                <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg">30°C</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </header>
+
+      {/* QUICK STATUS TICKER */}
+      <section className="bg-emerald-950 text-emerald-100 py-2.5 text-xs font-semibold shadow-inner" id="status-ticker">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap gap-4 items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <span className="inline-block h-2 w-2 rounded-full bg-amber-400 animate-ping"></span>
+            <span className="text-emerald-300 font-medium">Info Madiun Hari Ini:</span>
+            <span>Festival Pecel Alun-Alun dimulai lusa, cuaca diprediksi berawan.</span>
+          </div>
+          <div className="flex items-center space-x-6 text-emerald-300">
+            <span>📰 {newsList.length} Berita</span>
+            <span>💼 {jobsList.length} Loker</span>
+            <span>🛒 {umkmList.length} Lapak UMKM</span>
+            <span>🚨 {reportsList.length} Laporan Warga</span>
+          </div>
+        </div>
+      </section>
+
+      {/* MAIN LAYOUT */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8" id="main-content">
+        
+        {/* SUB HERO BANNER */}
+        <div className="mb-8 rounded-3xl bg-gradient-to-r from-emerald-800 to-teal-950 text-white p-6 md:p-10 shadow-lg relative overflow-hidden" id="hero-banner">
+          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]"></div>
+          <div className="relative z-10 max-w-2xl">
+            <span className="px-3 py-1 text-xs font-bold uppercase tracking-wider bg-emerald-500/30 text-emerald-300 rounded-full border border-emerald-500/40 mb-4 inline-block">Portal Interaktif</span>
+            <h2 className="text-3xl md:text-4xl font-extrabold font-serif leading-tight mb-3">Satu Portal untuk Seluruh Warga Madiun</h2>
+            <p className="text-slate-200 text-sm md:text-base leading-relaxed mb-6">
+              Akses informasi berita pemerintahan, publikasi lowongan kerja lokal, katalog belanja UMKM kreatif, hingga partisipasi melaporkan kejadian viral secara mandiri demi kemajuan kota tercinta.
+            </p>
+            
+            {/* Quick Actions */}
+            <div className="flex flex-wrap gap-3">
+              <button 
+                onClick={() => { setActiveTab('reports'); setIsReportModalOpen(true); }}
+                className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs transition duration-200 flex items-center shadow-md shadow-amber-900/10"
+              >
+                <AlertTriangle className="h-4 w-4 mr-1.5" /> Lapor Kejadian Warga
+              </button>
+              <button 
+                onClick={() => { setActiveTab('umkm'); setIsUMKMModalOpen(true); }}
+                className="bg-white hover:bg-slate-100 text-emerald-950 font-bold px-4 py-2.5 rounded-xl text-xs transition duration-200 flex items-center shadow-md shadow-emerald-950/20"
+              >
+                <Plus className="h-4 w-4 mr-1.5" /> Daftarkan Lapak UMKM
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* INTERACTIVE NAVIGATION SWITCHER */}
+        <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-100 mb-8 flex flex-wrap justify-between items-center gap-4" id="navigation-bar">
+          <nav className="flex flex-wrap gap-1.5 p-1 bg-slate-50 rounded-xl" aria-label="Tabs">
+            <button
+              onClick={() => handleTabChange('news')}
+              className={`flex items-center space-x-2 px-4 py-3 rounded-lg text-sm font-bold transition duration-200 ${
+                activeTab === 'news'
+                  ? 'bg-white text-emerald-700 shadow-sm border-b border-emerald-600/10'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              }`}
+              id="tab-news"
+            >
+              <Newspaper className="h-4.5 w-4.5" />
+              <span>Berita Terkini</span>
+              <span className="bg-slate-200 text-slate-700 text-xs px-1.5 py-0.5 rounded-full font-bold">{filteredNews.length}</span>
+            </button>
+
+            <button
+              onClick={() => handleTabChange('jobs')}
+              className={`flex items-center space-x-2 px-4 py-3 rounded-lg text-sm font-bold transition duration-200 ${
+                activeTab === 'jobs'
+                  ? 'bg-white text-emerald-700 shadow-sm border-b border-emerald-600/10'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              }`}
+              id="tab-jobs"
+            >
+              <Briefcase className="h-4.5 w-4.5" />
+              <span>Lowongan Kerja</span>
+              <span className="bg-slate-200 text-slate-700 text-xs px-1.5 py-0.5 rounded-full font-bold">{filteredJobs.length}</span>
+            </button>
+
+            <button
+              onClick={() => handleTabChange('umkm')}
+              className={`flex items-center space-x-2 px-4 py-3 rounded-lg text-sm font-bold transition duration-200 ${
+                activeTab === 'umkm'
+                  ? 'bg-white text-emerald-700 shadow-sm border-b border-emerald-600/10'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              }`}
+              id="tab-umkm"
+            >
+              <ShoppingBag className="h-4.5 w-4.5" />
+              <span>Pasar UMKM</span>
+              <span className="bg-slate-200 text-slate-700 text-xs px-1.5 py-0.5 rounded-full font-bold">{filteredUMKM.length}</span>
+            </button>
+
+            <button
+              onClick={() => handleTabChange('reports')}
+              className={`flex items-center space-x-2 px-4 py-3 rounded-lg text-sm font-bold transition duration-200 ${
+                activeTab === 'reports'
+                  ? 'bg-white text-emerald-700 shadow-sm border-b border-emerald-600/10'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              }`}
+              id="tab-reports"
+            >
+              <AlertTriangle className="h-4.5 w-4.5 text-amber-500" />
+              <span>Kejadian / Viral</span>
+              <span className="bg-slate-200 text-slate-700 text-xs px-1.5 py-0.5 rounded-full font-bold">{filteredReports.length}</span>
+            </button>
+          </nav>
+
+          {/* SHARED SEARCH INPUT */}
+          <div className="relative w-full sm:w-72" id="search-container">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+              <Search className="h-4 w-4" />
+            </span>
+            <input
+              type="text"
+              placeholder={`Cari di ${
+                activeTab === 'news' ? 'Berita' : 
+                activeTab === 'jobs' ? 'Loker' : 
+                activeTab === 'umkm' ? 'Lapak UMKM' : 'Aduan Warga'
+              }...`}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-150"
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* TAB CONTENTS */}
+        
+        {/* TAB 1: BERITA TERKINI */}
+        {activeTab === 'news' && (
+          <div className="space-y-8" id="news-section-panel">
+            
+            {/* Filter Pills */}
+            <div className="flex flex-wrap gap-2 items-center" id="news-filters">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2 flex items-center">
+                <Filter className="h-3 w-3 mr-1" /> Kategori Berita:
+              </span>
+              {['Semua', 'Pembangunan', 'Kuliner', 'Budaya', 'Ekonomi'].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setNewsFilter(cat)}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition duration-200 ${
+                    newsFilter === cat
+                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/10'
+                      : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {filteredNews.length === 0 ? (
+              <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 max-w-lg mx-auto">
+                <Info className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                <h3 className="text-lg font-bold text-slate-700">Berita tidak ditemukan</h3>
+                <p className="text-sm text-slate-400 mt-1">Coba sesuaikan kata pencarian atau pilih kategori berita lainnya.</p>
+              </div>
+            ) : (
+              <>
+                {/* News Grid Layout */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8" id="news-content-grid">
+                  
+                  {/* First item is featured (takes 2 cols if exists) */}
+                  {filteredNews.length > 0 && (
+                    <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition duration-200 flex flex-col h-full" id="featured-news-card">
+                      <div className={`h-64 sm:h-80 bg-gradient-to-tr ${filteredNews[0].imageBg} p-6 flex flex-col justify-end text-white relative`}>
+                        <div className="absolute inset-0 opacity-15 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:14px_24px]"></div>
+                        <div className="relative z-10">
+                          <span className="bg-emerald-500 text-white font-bold text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-md">
+                            {filteredNews[0].category}
+                          </span>
+                          <h3 className="text-xl sm:text-2xl md:text-3xl font-extrabold font-serif tracking-tight mt-3 mb-2 leading-tight">
+                            {filteredNews[0].title}
+                          </h3>
+                          <div className="flex items-center space-x-4 text-xs text-slate-200 font-medium mt-1">
+                            <span className="flex items-center"><Clock className="h-3.5 w-3.5 mr-1" /> {filteredNews[0].date}</span>
+                            <span>•</span>
+                            <span>{filteredNews[0].readTime}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-6 flex flex-col flex-1 justify-between">
+                        <p className="text-slate-600 text-sm leading-relaxed mb-4">
+                          {filteredNews[0].summary}
+                        </p>
+                        <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                          <div className="flex items-center space-x-2">
+                            <div className="h-8 w-8 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold">
+                              {filteredNews[0].author.substring(0, 2).toUpperCase()}
+                            </div>
+                            <span className="text-xs font-bold text-slate-700">{filteredNews[0].author}</span>
+                          </div>
+                          <button 
+                            onClick={() => setSelectedNews(filteredNews[0])}
+                            className="text-emerald-600 hover:text-emerald-700 text-xs font-extrabold flex items-center group"
+                          >
+                            Baca Selengkapnya <ChevronRight className="h-4 w-4 ml-0.5 group-hover:translate-x-0.5 transition duration-150" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Sidebar/Smaller News List */}
+                  <div className="space-y-6 flex flex-col lg:col-span-1" id="sub-news-list">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider pb-2 border-b border-slate-100">Berita Terpopuler Lainnya</h4>
+                    {filteredNews.slice(1).map((news) => (
+                      <div 
+                        key={news.id} 
+                        className="bg-white p-5 rounded-2xl border border-slate-100 hover:border-slate-200 shadow-sm hover:shadow transition duration-200 flex flex-col justify-between"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="bg-slate-100 text-slate-700 font-bold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded">
+                              {news.category}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-semibold">{news.date}</span>
+                          </div>
+                          <h5 
+                            onClick={() => setSelectedNews(news)}
+                            className="font-extrabold text-sm font-serif text-slate-900 hover:text-emerald-700 cursor-pointer line-clamp-2 leading-snug mb-2"
+                          >
+                            {news.title}
+                          </h5>
+                          <p className="text-slate-500 text-xs line-clamp-2 leading-relaxed mb-4">
+                            {news.summary}
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-between pt-3 border-t border-slate-50 text-[11px]">
+                          <span className="font-bold text-slate-600">{news.author}</span>
+                          <button 
+                            onClick={() => setSelectedNews(news)}
+                            className="text-emerald-600 hover:text-emerald-700 font-extrabold"
+                          >
+                            Detail →
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* TAB 2: LOWONGAN KERJA */}
+        {activeTab === 'jobs' && (
+          <div className="space-y-8" id="jobs-section-panel">
+            
+            {/* Header & Filter */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" id="jobs-filters-header">
+              <div className="flex flex-wrap gap-2 items-center">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2 flex items-center">
+                  <Filter className="h-3 w-3 mr-1" /> Jenis Loker:
+                </span>
+                {['Semua', 'Full-time', 'Part-time', 'Freelance'].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setJobTypeFilter(type)}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition duration-200 ${
+                      jobTypeFilter === type
+                        ? 'bg-emerald-600 text-white shadow-md'
+                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+              
+              <div className="text-xs text-slate-500 font-medium">
+                Ditemukan <span className="font-bold text-slate-800">{filteredJobs.length}</span> Lowongan Aktif
+              </div>
+            </div>
+
+            {/* Jobs Grid */}
+            {filteredJobs.length === 0 ? (
+              <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 max-w-lg mx-auto">
+                <Briefcase className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                <h3 className="text-lg font-bold text-slate-700">Loker tidak ditemukan</h3>
+                <p className="text-sm text-slate-400 mt-1">Coba sesuaikan kata kunci pencarian Anda.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6" id="jobs-grid">
+                {filteredJobs.map((job) => (
+                  <div 
+                    key={job.id} 
+                    className="bg-white p-6 rounded-2xl border border-slate-100 hover:border-slate-200 shadow-sm hover:shadow transition duration-200 flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                          job.type === 'Full-time' ? 'bg-blue-50 text-blue-700' :
+                          job.type === 'Part-time' ? 'bg-purple-50 text-purple-700' :
+                          'bg-amber-50 text-amber-700'
+                        }`}>
+                          {job.type}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-bold flex items-center">
+                          <Clock className="h-3 w-3 mr-1" /> {job.postedAt}
+                        </span>
+                      </div>
+
+                      <h3 className="font-extrabold text-lg text-slate-900 leading-snug mb-1 font-serif">{job.title}</h3>
+                      <p className="text-emerald-700 text-xs font-bold mb-4 flex items-center">
+                        {job.company}
+                      </p>
+
+                      <div className="space-y-2 text-xs text-slate-600 mb-5">
+                        <div className="flex items-center">
+                          <MapPin className="h-3.5 w-3.5 text-slate-400 mr-2 shrink-0" />
+                          <span>{job.location}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <DollarSign className="h-3.5 w-3.5 text-slate-400 mr-2 shrink-0" />
+                          <span className="font-semibold text-slate-800">{job.salary}</span>
+                        </div>
+                      </div>
+
+                      {/* Requirements teaser */}
+                      <div className="border-t border-slate-50 pt-4 mb-5">
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Persyaratan Inti:</p>
+                        <ul className="space-y-1.5">
+                          {job.requirements.slice(0, 2).map((req, i) => (
+                            <li key={i} className="text-xs text-slate-500 flex items-start">
+                              <span className="text-emerald-500 mr-1.5">•</span>
+                              <span className="line-clamp-1">{req}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-4 border-t border-slate-100">
+                      <button 
+                        onClick={() => setSelectedJob(job)}
+                        className="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold py-2 px-4 rounded-xl text-xs transition duration-150"
+                      >
+                        Detail Loker
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setSelectedJob(job);
+                          setIsLokerModalOpen(true);
+                        }}
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl text-xs shadow-sm transition duration-150"
+                      >
+                        Kirim Lamaran
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 3: PASAR JUAL BELI UMKM */}
+        {activeTab === 'umkm' && (
+          <div className="space-y-8" id="umkm-section-panel">
+            
+            {/* Catalog Subheader & Register CTA */}
+            <div className="bg-amber-50 rounded-2xl p-5 border border-amber-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4" id="umkm-registration-cta">
+              <div className="flex items-start space-x-3">
+                <div className="h-10 w-10 bg-amber-500 text-slate-950 rounded-xl flex items-center justify-center shrink-0">
+                  <ShoppingBag className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm md:text-base font-serif">Punya Usaha Lokal / UMKM di Madiun?</h3>
+                  <p className="text-xs text-slate-600 mt-0.5">Daftarkan lapak, produk, atau jasa Anda di sini secara gratis agar menjangkau lebih banyak pembeli lokal.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsUMKMModalOpen(true)}
+                className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-4 py-2.5 rounded-xl flex items-center transition shrink-0 shadow-md"
+              >
+                <Plus className="h-4 w-4 mr-1.5" /> Promosikan UMKM Anda
+              </button>
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex flex-wrap gap-2 items-center" id="umkm-filters">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2 flex items-center">
+                <Filter className="h-3 w-3 mr-1" /> Kategori Produk:
+              </span>
+              {['Semua', 'Makanan', 'Kerajinan', 'Fashion', 'Jasa'].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setUmkmCategoryFilter(cat)}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition duration-200 ${
+                    umkmCategoryFilter === cat
+                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/10'
+                      : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {filteredUMKM.length === 0 ? (
+              <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 max-w-lg mx-auto">
+                <ShoppingBag className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                <h3 className="text-lg font-bold text-slate-700">Lapak UMKM tidak ditemukan</h3>
+                <p className="text-sm text-slate-400 mt-1">Coba sesuaikan kata pencarian atau pilih kategori dagangan lainnya.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" id="umkm-grid">
+                {filteredUMKM.map((prod) => (
+                  <div 
+                    key={prod.id} 
+                    className="bg-white rounded-2xl border border-slate-100 hover:border-slate-200 overflow-hidden shadow-sm hover:shadow transition duration-200 flex flex-col justify-between h-full"
+                  >
+                    <div>
+                      {/* Interactive visual placeholder */}
+                      <div className={`h-40 ${prod.imageBg} flex flex-col justify-between p-4 relative`}>
+                        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:12px_12px]"></div>
+                        <div className="flex justify-between items-center relative z-10">
+                          <span className="bg-white/95 text-slate-800 font-extrabold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-md shadow-sm">
+                            {prod.category}
+                          </span>
+                          <div className="flex items-center bg-white/95 px-1.5 py-0.5 rounded-md shadow-sm text-[10px] font-extrabold text-amber-500">
+                            ★ {prod.rating.toFixed(1)}
+                          </div>
+                        </div>
+                        <div className="relative z-10 flex items-center space-x-1.5 text-white/90 drop-shadow-sm">
+                          <ImageIcon className="h-5 w-5 opacity-80" />
+                          <span className="text-[11px] font-semibold">Produk Mitra UMKM</span>
+                        </div>
+                      </div>
+
+                      <div className="p-4 space-y-2">
+                        <h4 className="font-extrabold text-sm text-slate-900 leading-snug line-clamp-2 min-h-[2.5rem] font-serif">{prod.name}</h4>
+                        <p className="text-emerald-600 font-extrabold text-base">
+                          {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(prod.price)}
+                        </p>
+                        <p className="text-slate-500 text-xs line-clamp-2 leading-relaxed">
+                          {prod.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="p-4 pt-0">
+                      <div className="border-t border-slate-50 pt-3 flex items-center justify-between text-xs mb-3">
+                        <span className="text-slate-400">Penjual:</span>
+                        <span className="font-bold text-slate-700">{prod.seller}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button 
+                          onClick={() => setSelectedUMKM(prod)}
+                          className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 rounded-xl text-[11px] transition duration-150"
+                        >
+                          Detail
+                        </button>
+                        <a 
+                          href={`https://wa.me/${prod.contact}?text=Halo%20${encodeURIComponent(prod.seller)},%20saya%20tertarik%20dengan%20produk%20'${encodeURIComponent(prod.name)}'%20di%20portal%20Berita%20Madiun.%20Apakah%20masih%20tersedia?`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-[11px] text-center flex items-center justify-center gap-1 transition duration-150 shadow-sm"
+                        >
+                          <Phone className="h-3 w-3" /> Chat WA
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 4: KEJADIAN/VIRAL */}
+        {activeTab === 'reports' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8" id="reports-section-panel">
+            
+            {/* Feed Section (2 cols) */}
+            <div className="lg:col-span-2 space-y-6" id="reports-feed">
+              
+              {/* Header and Filter */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-4">
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2 flex items-center">
+                    <Filter className="h-3 w-3 mr-1" /> Urgensi Laporan:
+                  </span>
+                  {['Semua', 'Rendah', 'Sedang', 'Tinggi'].map((urg) => (
+                    <button
+                      key={urg}
+                      onClick={() => setReportUrgencyFilter(urg)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition duration-200 ${
+                        reportUrgencyFilter === urg
+                          ? 'bg-amber-500 text-slate-950 shadow-sm font-extrabold'
+                          : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {urg}
+                    </button>
+                  ))}
+                </div>
+                <div className="text-xs font-semibold text-slate-500">
+                  <span className="font-bold text-slate-800">{filteredReports.length}</span> Aduan Terverifikasi
+                </div>
+              </div>
+
+              {filteredReports.length === 0 ? (
+                <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 max-w-md mx-auto">
+                  <AlertCircle className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                  <h3 className="text-lg font-bold text-slate-700">Aduan tidak ditemukan</h3>
+                  <p className="text-sm text-slate-400 mt-1">Belum ada aduan warga untuk filter urgensi terpilih.</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {filteredReports.map((report) => (
+                    <div 
+                      key={report.id}
+                      className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow transition duration-200"
+                    >
+                      {/* Meta */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <div className="flex items-center space-x-2">
+                          <span className="bg-slate-100 text-slate-700 font-bold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded">
+                            {report.category}
+                          </span>
+                          <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                            report.urgency === 'Tinggi' ? 'bg-rose-100 text-rose-800' :
+                            report.urgency === 'Sedang' ? 'bg-amber-100 text-amber-800' :
+                            'bg-slate-100 text-slate-600'
+                          }`}>
+                            Urgensi: {report.urgency}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-bold flex items-center">
+                          <Clock className="h-3 w-3 mr-1" /> {report.time}
+                        </span>
+                      </div>
+
+                      {/* Main report Title and Description */}
+                      <h4 className="font-extrabold text-base text-slate-900 leading-snug mb-2 font-serif">{report.title}</h4>
+                      <p className="text-slate-600 text-sm leading-relaxed mb-4 whitespace-pre-line">
+                        {report.description}
+                      </p>
+
+                      <div className="flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-50 mb-4">
+                        <span className="font-bold text-slate-600">Pelapor: {report.reporter}</span>
+                        <span className="flex items-center font-semibold text-slate-500">
+                          <MessageSquare className="h-3.5 w-3.5 mr-1" /> {report.comments.length} Diskusi
+                        </span>
+                      </div>
+
+                      {/* Interactive Upvote & Open comments trigger */}
+                      <div className="flex items-center justify-between pt-3 border-t border-slate-100 gap-4">
+                        <button 
+                          onClick={() => handleUpvote(report.id)}
+                          className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition duration-150 ${
+                            report.isUpvoted
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                              : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          <ThumbsUp className={`h-4 w-4 ${report.isUpvoted ? 'fill-emerald-600 text-emerald-600' : ''}`} />
+                          <span>{report.isUpvoted ? 'Upvoted (Anda & ' + (report.upvotes - 1) + ' Warga)' : 'Setuju & Upvote (' + report.upvotes + ')'}</span>
+                        </button>
+                      </div>
+
+                      {/* Dynamic Inline Comments */}
+                      <div className="mt-5 bg-slate-50 rounded-xl p-4 space-y-4" id={`comments-${report.id}`}>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Komentar Warga ({report.comments.length}):</p>
+                        
+                        {report.comments.length > 0 ? (
+                          <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
+                            {report.comments.map((comm) => (
+                              <div key={comm.id} className="text-xs bg-white p-2.5 rounded-lg border border-slate-100">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="font-bold text-slate-700">{comm.author}</span>
+                                  <span className="text-[10px] text-slate-400">{comm.time}</span>
+                                </div>
+                                <p className="text-slate-600 leading-relaxed">{comm.text}</p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-400 italic">Belum ada diskusi. Jadilah yang pertama memberikan respon santun!</p>
+                        )}
+
+                        {/* Add comment form */}
+                        <form onSubmit={(e) => handleAddComment(report.id, e)} className="flex gap-2 pt-2">
+                          <input
+                            type="text"
+                            placeholder="Tulis opini warga..."
+                            value={commentInputs[report.id] || ''}
+                            onChange={(e) => setCommentInputs(prev => ({ ...prev, [report.id]: e.target.value }))}
+                            className="flex-1 bg-white border border-slate-200 rounded-lg py-1.5 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                          />
+                          <button
+                            type="submit"
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold p-2 rounded-lg text-xs flex items-center justify-center transition duration-150"
+                          >
+                            <Send className="h-3.5 w-3.5" />
+                          </button>
+                        </form>
+                      </div>
+
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Sticky Reporter Sidebar (1 col) */}
+            <div className="lg:col-span-1 space-y-6" id="reports-sidebar">
+              <div className="bg-slate-900 text-white rounded-3xl p-6 shadow-sm border border-slate-800 sticky top-24">
+                <div className="h-11 w-11 bg-amber-500 text-slate-900 rounded-xl flex items-center justify-center mb-4">
+                  <AlertTriangle className="h-5.5 w-5.5" />
+                </div>
+                <h3 className="font-extrabold text-lg mb-2 font-serif">Lapor Kejadian Warga</h3>
+                <p className="text-xs text-slate-300 leading-relaxed mb-6">
+                  Melihat kecelakaan, kemacetan parah, jalan berlubang, barang hilang, atau event dadakan di sekitar Madiun? Tulis dan publikasikan laporan Anda di sini agar direspon sesama warga dan aparat terkait.
+                </p>
+
+                {/* Inline form */}
+                <form onSubmit={handleReportSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nama Pelapor / Alias</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Danang Madiun"
+                      value={newReport.reporter}
+                      onChange={(e) => setNewReport(prev => ({ ...prev, reporter: e.target.value }))}
+                      className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl py-2 px-3.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Judul Kejadian</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Lampu lalu lintas padam di Jl. Kartini"
+                      value={newReport.title}
+                      onChange={(e) => setNewReport(prev => ({ ...prev, title: e.target.value }))}
+                      className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl py-2 px-3.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Kategori</label>
+                      <select
+                        value={newReport.category}
+                        onChange={(e) => setNewReport(prev => ({ ...prev, category: e.target.value as CitizenReport['category'] }))}
+                        className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl py-2 px-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                      >
+                        <option value="Lalu Lintas">Lalu Lintas</option>
+                        <option value="Kehilangan">Kehilangan</option>
+                        <option value="Darurat">Darurat</option>
+                        <option value="Event">Event</option>
+                        <option value="Fasilitas">Fasilitas</option>
+                        <option value="Lainnya">Lainnya</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Tingkat Urgensi</label>
+                      <select
+                        value={newReport.urgency}
+                        onChange={(e) => setNewReport(prev => ({ ...prev, urgency: e.target.value as CitizenReport['urgency'] }))}
+                        className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl py-2 px-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                      >
+                        <option value="Rendah">Rendah (Info)</option>
+                        <option value="Sedang">Sedang (Butuh Perhatian)</option>
+                        <option value="Tinggi">Tinggi (Darurat)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Deskripsi & Kronologi Lengkap</label>
+                    <textarea
+                      placeholder="Jelaskan lokasi tepatnya, waktu, kondisi saat ini, dan alternatif tindakan..."
+                      rows={4}
+                      value={newReport.description}
+                      onChange={(e) => setNewReport(prev => ({ ...prev, description: e.target.value }))}
+                      className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl py-2 px-3.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 resize-none"
+                      required
+                    ></textarea>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2.5 rounded-xl text-xs transition duration-200 shadow-md shadow-amber-900/10 flex items-center justify-center gap-1.5"
+                  >
+                    <Send className="h-4 w-4" /> Kirim Laporan Aduan
+                  </button>
+                </form>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+      </main>
+
+      {/* FOOTER */}
+      <footer className="bg-slate-900 text-slate-400 py-12 mt-16 border-t border-slate-800" id="main-footer">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
+          
+          <div className="md:col-span-2 space-y-4">
+            <div className="flex items-center space-x-2 text-white">
+              <div className="h-8 w-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-extrabold text-sm">BM</div>
+              <span className="font-bold text-lg font-serif">Berita Madiun</span>
+            </div>
+            <p className="text-xs leading-relaxed max-w-sm">
+              Media kolaborasi warga digital Madiun Raya. Wadah penyampaian informasi terkini, pemberdayaan ekonomi mikro melalui UMKM, penyerapan tenaga kerja, dan perbaikan pelayanan publik lewat aduan kejadian.
+            </p>
+            <p className="text-[10px] text-slate-500">© 2026 Portal Berita Madiun - Dikembangkan secara responsif untuk kesejahteraan bersama.</p>
+          </div>
+
+          <div>
+            <h5 className="text-sm font-bold text-white mb-4 uppercase tracking-wider font-serif">Akses Cepat</h5>
+            <ul className="space-y-2 text-xs">
+              <li><button onClick={() => handleTabChange('news')} className="hover:text-white transition">Kabar Berita Terkini</button></li>
+              <li><button onClick={() => handleTabChange('jobs')} className="hover:text-white transition">Lowongan Kerja (Loker)</button></li>
+              <li><button onClick={() => handleTabChange('umkm')} className="hover:text-white transition">Direktori Lapak UMKM</button></li>
+              <li><button onClick={() => handleTabChange('reports')} className="hover:text-white transition">Laporan Aduan Warga</button></li>
+            </ul>
+          </div>
+
+          <div>
+            <h5 className="text-sm font-bold text-white mb-4 uppercase tracking-wider font-serif">Kontak Penting Madiun</h5>
+            <ul className="space-y-1.5 text-xs text-slate-500">
+              <li>🚒 Pemadam Kebakaran: <span className="text-slate-300 font-semibold">(0351) 464223</span></li>
+              <li>🚨 Polres Madiun Kota: <span className="text-slate-300 font-semibold">(0351) 454110</span></li>
+              <li>🏥 RSUD dr. Soedono: <span className="text-slate-300 font-semibold">(0351) 464325</span></li>
+              <li>⚡ PLN Area Madiun: <span className="text-slate-300 font-semibold">123</span></li>
+            </ul>
+          </div>
+
+        </div>
+      </footer>
+
+      {/* ==========================================
+          MODALS & FLYOUTS
+          ========================================== */}
+
+      {/* MODAL 1: BACA BERITA DETAIL */}
+      {selectedNews && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true" id="news-detail-modal">
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity bg-slate-900/60 backdrop-blur-sm" onClick={() => setSelectedNews(null)}></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            
+            <div className="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full animate-fade-in">
+              
+              {/* Cover Gradient Graphic */}
+              <div className={`h-48 sm:h-64 bg-gradient-to-tr ${selectedNews.imageBg} p-6 flex flex-col justify-end text-white relative`}>
+                <button 
+                  onClick={() => setSelectedNews(null)}
+                  className="absolute top-4 right-4 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition duration-150"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+                <div className="relative z-10">
+                  <span className="bg-emerald-500 text-white font-bold text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-md">
+                    {selectedNews.category}
+                  </span>
+                  <h3 className="text-xl sm:text-2xl font-extrabold font-serif tracking-tight mt-3 mb-1">
+                    {selectedNews.title}
+                  </h3>
+                </div>
+              </div>
+
+              {/* Content Body */}
+              <div className="p-6 sm:p-8">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6 text-xs text-slate-500 font-semibold">
+                  <div className="flex items-center space-x-2">
+                    <div className="h-8 w-8 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold">
+                      {selectedNews.author.substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-slate-800 font-extrabold">{selectedNews.author}</p>
+                      <p className="text-[10px] text-slate-400">Kontributor Lokal</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p>{selectedNews.date}</p>
+                    <p className="text-[10px] text-emerald-600 font-bold">{selectedNews.readTime}</p>
+                  </div>
+                </div>
+
+                <div className="prose prose-emerald max-w-none text-slate-700 text-sm sm:text-base leading-relaxed whitespace-pre-wrap font-serif">
+                  {selectedNews.content}
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between">
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.href}`);
+                      triggerToast("Tautan berita berhasil disalin ke papan klip!", "info");
+                    }}
+                    className="flex items-center space-x-1.5 text-slate-500 hover:text-emerald-700 text-xs font-bold transition duration-150"
+                  >
+                    <Share2 className="h-4 w-4" /> <span>Bagikan Kabar</span>
+                  </button>
+                  <button 
+                    onClick={() => setSelectedNews(null)}
+                    className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 px-5 rounded-xl text-xs transition duration-150 shadow"
+                  >
+                    Selesai Membaca
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: DETAIL LOKER */}
+      {selectedJob && !isLokerModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true" id="job-detail-modal">
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity bg-slate-900/60 backdrop-blur-sm" onClick={() => setSelectedJob(null)}></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            
+            <div className="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full animate-fade-in">
+              
+              <div className="p-6 sm:p-8">
+                
+                {/* Header */}
+                <div className="flex items-start justify-between border-b border-slate-100 pb-5 mb-5">
+                  <div>
+                    <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                      selectedJob.type === 'Full-time' ? 'bg-blue-50 text-blue-700' :
+                      selectedJob.type === 'Part-time' ? 'bg-purple-50 text-purple-700' :
+                      'bg-amber-50 text-amber-700'
+                    }`}>
+                      {selectedJob.type}
+                    </span>
+                    <h3 className="font-extrabold text-xl text-slate-900 mt-2 font-serif">{selectedJob.title}</h3>
+                    <p className="text-emerald-700 text-sm font-bold mt-0.5">{selectedJob.company}</p>
+                  </div>
+                  <button 
+                    onClick={() => setSelectedJob(null)}
+                    className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-50 transition"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                {/* Meta details */}
+                <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl mb-6">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Lokasi Kerja</span>
+                    <span className="text-xs font-semibold text-slate-800 flex items-center mt-1">
+                      <MapPin className="h-3.5 w-3.5 text-slate-400 mr-1.5 shrink-0" /> {selectedJob.location}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Estimasi Gaji</span>
+                    <span className="text-xs font-semibold text-slate-800 flex items-center mt-1">
+                      <DollarSign className="h-3.5 w-3.5 text-slate-400 mr-1.5 shrink-0" /> {selectedJob.salary}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Requirements List */}
+                <div className="space-y-3 mb-8">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Kualifikasi Persyaratan:</h4>
+                  <ul className="space-y-2.5">
+                    {selectedJob.requirements.map((req, idx) => (
+                      <li key={idx} className="text-xs sm:text-sm text-slate-600 flex items-start">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500 mr-2 shrink-0 mt-0.5" />
+                        <span>{req}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Footer buttons */}
+                <div className="flex gap-3 pt-5 border-t border-slate-100">
+                  <button 
+                    onClick={() => setSelectedJob(null)}
+                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition duration-150"
+                  >
+                    Tutup
+                  </button>
+                  <button 
+                    onClick={() => setIsLokerModalOpen(true)}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition duration-150 shadow"
+                  >
+                    Lamar Sekarang
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: SUBMIT LAMARAN KERJA */}
+      {isLokerModalOpen && selectedJob && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true" id="job-apply-modal">
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsLokerModalOpen(false)}></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            
+            <div className="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full animate-fade-in">
+              <div className="p-6">
+                
+                {/* Title */}
+                <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+                  <div>
+                    <h3 className="font-extrabold text-base text-slate-900 font-serif">Kirim Berkas Lamaran</h3>
+                    <p className="text-xs text-emerald-600 font-bold mt-0.5">{selectedJob.title} • {selectedJob.company}</p>
+                  </div>
+                  <button 
+                    onClick={() => setIsLokerModalOpen(false)}
+                    className="text-slate-400 hover:text-slate-600 p-1"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                {/* Form */}
+                <form onSubmit={handleJobApplySubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nama Lengkap Anda</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Danang Setiawan"
+                      value={newJobApplication.name}
+                      onChange={(e) => setNewJobApplication(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Email Aktif</label>
+                      <input
+                        type="email"
+                        placeholder="contoh@gmail.com"
+                        value={newJobApplication.email}
+                        onChange={(e) => setNewJobApplication(prev => ({ ...prev, email: e.target.value }))}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">No. WhatsApp</label>
+                      <input
+                        type="tel"
+                        placeholder="081xxxxxxxxx"
+                        value={newJobApplication.phone}
+                        onChange={(e) => setNewJobApplication(prev => ({ ...prev, phone: e.target.value }))}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Pesan Tambahan (Opsional)</label>
+                    <textarea
+                      placeholder="Tulis salam perkenalan singkat atau motivasi Anda melamar..."
+                      rows={3}
+                      value={newJobApplication.message}
+                      onChange={(e) => setNewJobApplication(prev => ({ ...prev, message: e.target.value }))}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 resize-none"
+                    ></textarea>
+                  </div>
+
+                  {/* DRAG AND DROP FILE UPLOAD */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Unggah Curriculum Vitae (CV / Resume) PDF</label>
+                    <div
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      className={`border-2 border-dashed rounded-2xl p-5 text-center cursor-pointer transition-all ${
+                        newJobApplication.isDragging
+                          ? 'border-emerald-500 bg-emerald-50/50'
+                          : newJobApplication.uploaded
+                          ? 'border-emerald-400 bg-emerald-50/10'
+                          : 'border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        onChange={handleFileChange}
+                        className="hidden"
+                        id="file-upload-input"
+                      />
+                      <label htmlFor="file-upload-input" className="cursor-pointer">
+                        <UploadCloud className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                        {newJobApplication.uploaded ? (
+                          <div className="space-y-1">
+                            <p className="text-xs font-bold text-emerald-700">Berkas Berhasil Terunggah!</p>
+                            <p className="text-[10px] text-slate-500">{newJobApplication.resumeName}</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            <p className="text-xs font-bold text-slate-600">Seret file ke sini, atau klik untuk memilih</p>
+                            <p className="text-[10px] text-slate-400">Hanya format PDF, maksimal ukuran berkas 5MB</p>
+                          </div>
+                        )}
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setIsLokerModalOpen(false)}
+                      className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 rounded-xl text-xs transition duration-150"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs transition duration-150 shadow"
+                    >
+                      Kirim Lamaran Kerja
+                    </button>
+                  </div>
+                </form>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: DETAIL PRODUK UMKM */}
+      {selectedUMKM && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true" id="umkm-detail-modal">
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity bg-slate-900/60 backdrop-blur-sm" onClick={() => setSelectedUMKM(null)}></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            
+            <div className="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-xl sm:w-full animate-fade-in">
+              
+              <div className={`h-48 ${selectedUMKM.imageBg} p-6 flex flex-col justify-between relative`}>
+                <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:12px_12px]"></div>
+                <button 
+                  onClick={() => setSelectedUMKM(null)}
+                  className="absolute top-4 right-4 bg-black/10 hover:bg-black/25 text-slate-800 p-2 rounded-full transition"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+                <span className="bg-white/95 text-slate-800 font-extrabold text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-md self-start shadow-sm">
+                  Kategori: {selectedUMKM.category}
+                </span>
+                <div>
+                  <h3 className="font-extrabold text-lg sm:text-xl text-slate-950 font-serif leading-snug drop-shadow-sm">{selectedUMKM.name}</h3>
+                  <div className="flex items-center space-x-1.5 text-amber-500 font-bold text-xs mt-1 drop-shadow-sm">
+                    <span>★ {selectedUMKM.rating.toFixed(1)}</span>
+                    <span className="text-slate-500">•</span>
+                    <span className="text-slate-600 text-[11px]">Mitra Lokal Terverifikasi</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6">
+                
+                <div className="space-y-4">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Harga Jual</span>
+                    <span className="text-xl font-extrabold text-emerald-600 mt-1 block">
+                      {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(selectedUMKM.price)}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Deskripsi Produk/Jasa</span>
+                    <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mt-1.5 whitespace-pre-wrap">
+                      {selectedUMKM.description}
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50 p-3 rounded-2xl flex items-center justify-between text-xs">
+                    <div>
+                      <p className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Nama Pemilik UMKM</p>
+                      <p className="font-extrabold text-slate-800 mt-0.5">{selectedUMKM.seller}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Kontak WhatsApp</p>
+                      <p className="font-extrabold text-slate-800 mt-0.5">+{selectedUMKM.contact}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-6 mt-6 border-t border-slate-100">
+                  <button 
+                    onClick={() => setSelectedUMKM(null)}
+                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition duration-150"
+                  >
+                    Kembali
+                  </button>
+                  <a 
+                    href={`https://wa.me/${selectedUMKM.contact}?text=Halo%20${encodeURIComponent(selectedUMKM.seller)},%20saya%20tertarik%20dengan%20produk%20'${encodeURIComponent(selectedUMKM.name)}'%20di%20portal%20Berita%20Madiun.%20Bisa%20beritahu%20saya%20cara%20pemesanan?`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs text-center flex items-center justify-center gap-1.5 transition duration-150 shadow"
+                  >
+                    <Phone className="h-4 w-4" /> Hubungi via WhatsApp
+                  </a>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 5: DAFTARKAN UMKM BARU */}
+      {isUMKMModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true" id="umkm-register-modal">
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsUMKMModalOpen(false)}></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            
+            <div className="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full animate-fade-in">
+              <div className="p-6">
+                
+                {/* Title */}
+                <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+                  <div>
+                    <h3 className="font-extrabold text-base text-slate-900 font-serif">Daftarkan Lapak / Produk UMKM</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Isi detail produk untuk dipromosikan ke seluruh warga.</p>
+                  </div>
+                  <button 
+                    onClick={() => setIsUMKMModalOpen(false)}
+                    className="text-slate-400 hover:text-slate-600 p-1"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                {/* Form */}
+                <form onSubmit={handleUMKMSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nama Produk / Jasa Usaha</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Sambel Pecel Kering Super Pedas"
+                      value={newUMKM.name}
+                      onChange={(e) => setNewUMKM(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Kategori Usaha</label>
+                      <select
+                        value={newUMKM.category}
+                        onChange={(e) => setNewUMKM(prev => ({ ...prev, category: e.target.value as UMKMItem['category'] }))}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                      >
+                        <option value="Makanan">Makanan & Kuliner</option>
+                        <option value="Kerajinan">Kerajinan Tangan</option>
+                        <option value="Fashion">Fashion & Kain</option>
+                        <option value="Jasa">Jasa Panggilan</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Harga (Rupiah)</label>
+                      <input
+                        type="number"
+                        placeholder="Contoh: 15000"
+                        value={newUMKM.price}
+                        onChange={(e) => setNewUMKM(prev => ({ ...prev, price: e.target.value }))}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nama Pemilik / Seller</label>
+                      <input
+                        type="text"
+                        placeholder="Contoh: Bu Sri"
+                        value={newUMKM.seller}
+                        onChange={(e) => setNewUMKM(prev => ({ ...prev, seller: e.target.value }))}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">No. WhatsApp</label>
+                      <input
+                        type="tel"
+                        placeholder="Contoh: 08123456789"
+                        value={newUMKM.contact}
+                        onChange={(e) => setNewUMKM(prev => ({ ...prev, contact: e.target.value }))}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Deskripsi Lengkap & Detail Pemesanan</label>
+                    <textarea
+                      placeholder="Jelaskan keunggulan produk Anda, ukuran, bahan, varian rasa, atau jangkauan layanan panggilan..."
+                      rows={4}
+                      value={newUMKM.description}
+                      onChange={(e) => setNewUMKM(prev => ({ ...prev, description: e.target.value }))}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 resize-none"
+                    ></textarea>
+                  </div>
+
+                  <div className="flex gap-2 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setIsUMKMModalOpen(false)}
+                      className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 rounded-xl text-xs transition duration-150"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs transition duration-150 shadow"
+                    >
+                      Daftarkan Lapak Usaha
+                    </button>
+                  </div>
+                </form>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}

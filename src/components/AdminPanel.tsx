@@ -3,7 +3,8 @@ import {
   NewsItem, 
   JobItem, 
   UMKMItem, 
-  CitizenReport 
+  CitizenReport,
+  RssRotationSource
 } from '../types';
 import { 
   Lock, 
@@ -44,6 +45,8 @@ interface AdminPanelProps {
   setReportsList: React.Dispatch<React.SetStateAction<CitizenReport[]>>;
   tickerText: string;
   setTickerText: (text: string) => void;
+  rssSources: RssRotationSource[];
+  setRssSources: React.Dispatch<React.SetStateAction<RssRotationSource[]>>;
   triggerToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
 }
 
@@ -58,6 +61,8 @@ export default function AdminPanel({
   setReportsList,
   tickerText,
   setTickerText,
+  rssSources,
+  setRssSources,
   triggerToast
 }: AdminPanelProps) {
   // Authentication State
@@ -68,13 +73,14 @@ export default function AdminPanel({
   const [showPin, setShowPin] = useState(false);
 
   // Sub Tabs inside Admin Dashboard
-  const [subTab, setSubTab] = useState<'news' | 'jobs' | 'umkm' | 'reports' | 'settings'>('news');
+  const [subTab, setSubTab] = useState<'news' | 'jobs' | 'umkm' | 'reports' | 'rotation'>('news');
   const [adminSearch, setAdminSearch] = useState('');
 
   // Form States (Generic Modal for Add / Edit)
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editMode, setEditMode] = useState<boolean>(false);
   const [activeItemId, setActiveItemId] = useState<number | null>(null);
+  const [activeRotationId, setActiveRotationId] = useState<string | null>(null);
 
   // Draft states for forms
   const [newsDraft, setNewsDraft] = useState<Partial<NewsItem>>({
@@ -120,8 +126,19 @@ export default function AdminPanel({
     comments: []
   });
 
+  const [rotationDraft, setRotationDraft] = useState<Partial<RssRotationSource>>({
+    name: '',
+    category: 'RSS Antara',
+    hours: '',
+    color: 'from-blue-600 to-indigo-950',
+    textAccent: 'text-blue-600',
+    badgeColor: 'bg-blue-500 text-white',
+    borderColor: 'border-blue-200'
+  });
+
   // Delete confirmation modal states
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [deleteConfirmRotationId, setDeleteConfirmRotationId] = useState<string | null>(null);
 
   // Pre-made imageBg choices for News & UMKM
   const newsGradients = [
@@ -208,6 +225,17 @@ export default function AdminPanel({
         time: 'Baru saja',
         comments: []
       });
+    } else if (subTab === 'rotation') {
+      setRotationDraft({
+        name: '',
+        category: 'RSS Antara',
+        hours: '',
+        color: 'from-blue-600 to-indigo-950',
+        textAccent: 'text-blue-600',
+        badgeColor: 'bg-blue-500 text-white',
+        borderColor: 'border-blue-200'
+      });
+      setActiveRotationId(null);
     }
     setIsFormOpen(true);
   };
@@ -215,7 +243,7 @@ export default function AdminPanel({
   // Open Edit Form
   const openEditForm = (item: any) => {
     setEditMode(true);
-    setActiveItemId(item.id);
+    setActiveItemId(item.id || null);
 
     if (subTab === 'news') {
       setNewsDraft({ ...item });
@@ -225,6 +253,9 @@ export default function AdminPanel({
       setUmkmDraft({ ...item });
     } else if (subTab === 'reports') {
       setReportDraft({ ...item });
+    } else if (subTab === 'rotation') {
+      setRotationDraft({ ...item });
+      setActiveRotationId(item.id);
     }
     setIsFormOpen(true);
   };
@@ -331,6 +362,28 @@ export default function AdminPanel({
         setReportsList(prev => [newItem, ...prev]);
         triggerToast('Laporan kejadian warga baru berhasil dipublikasikan!', 'success');
       }
+    } else if (subTab === 'rotation') {
+      if (!rotationDraft.name || !rotationDraft.category || !rotationDraft.hours) {
+        triggerToast('Harap isi nama, kategori RSS, dan jam giliran!', 'error');
+        return;
+      }
+      if (editMode && activeRotationId) {
+        setRssSources(prev => prev.map(r => r.id === activeRotationId ? { ...r, ...rotationDraft } as RssRotationSource : r));
+        triggerToast('Jadwal giliran berhasil diperbarui!', 'success');
+      } else {
+        const newItem: RssRotationSource = {
+          id: 'rot_' + Date.now(),
+          name: rotationDraft.name!,
+          category: rotationDraft.category!,
+          hours: rotationDraft.hours!,
+          color: rotationDraft.color || 'from-blue-600 to-indigo-950',
+          textAccent: rotationDraft.textAccent || 'text-blue-600',
+          badgeColor: rotationDraft.badgeColor || 'bg-blue-500 text-white',
+          borderColor: rotationDraft.borderColor || 'border-blue-200'
+        };
+        setRssSources(prev => [...prev, newItem]);
+        triggerToast('Jadwal giliran baru berhasil ditambahkan!', 'success');
+      }
     }
 
     setIsFormOpen(false);
@@ -352,6 +405,12 @@ export default function AdminPanel({
       triggerToast('Laporan warga berhasil dihapus!', 'success');
     }
     setDeleteConfirmId(null);
+  };
+
+  const handleDeleteRotationItem = (id: string) => {
+    setRssSources(prev => prev.filter(r => r.id !== id));
+    triggerToast('Jadwal giliran berhasil dihapus!', 'success');
+    setDeleteConfirmRotationId(null);
   };
 
   // Requirements fields managers for jobs
@@ -383,6 +442,7 @@ export default function AdminPanel({
   const searchedJobs = jobsList.filter(j => j.title.toLowerCase().includes(adminSearch.toLowerCase()) || j.company.toLowerCase().includes(adminSearch.toLowerCase()));
   const searchedUMKMs = umkmList.filter(u => u.name.toLowerCase().includes(adminSearch.toLowerCase()) || u.seller.toLowerCase().includes(adminSearch.toLowerCase()));
   const searchedReports = reportsList.filter(r => r.title.toLowerCase().includes(adminSearch.toLowerCase()) || r.reporter.toLowerCase().includes(adminSearch.toLowerCase()));
+  const searchedRotations = rssSources.filter(r => r.name.toLowerCase().includes(adminSearch.toLowerCase()) || r.category.toLowerCase().includes(adminSearch.toLowerCase()));
 
   // Lock Screen View if not Authenticated
   if (!isAuthenticated) {
@@ -590,6 +650,18 @@ export default function AdminPanel({
             >
               <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
               <span>Laporan Warga ({reportsList.length})</span>
+            </button>
+
+            <button
+              onClick={() => { setSubTab('rotation'); setAdminSearch(''); }}
+              className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition duration-150 ${
+                subTab === 'rotation'
+                  ? 'bg-emerald-600 text-white shadow-md'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Clock className="h-3.5 w-3.5 text-blue-500" />
+              <span>Kelola Giliran RSS ({rssSources.length})</span>
             </button>
           </div>
 
@@ -847,6 +919,66 @@ export default function AdminPanel({
               )}
             </div>
           )}
+
+          {/* 5. ROTATION TABLE */}
+          {subTab === 'rotation' && (
+            <div className="overflow-x-auto">
+              {searchedRotations.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs font-medium">Data Saring Berita / Giliran Kosong atau Tidak Ditemukan.</div>
+              ) : (
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400 pb-3">
+                      <th className="py-3 px-2">Nama Media</th>
+                      <th className="py-3 px-2">Kategori RSS</th>
+                      <th className="py-3 px-2">Jam Giliran</th>
+                      <th className="py-3 px-2">Visual Gradient & Warna</th>
+                      <th className="py-3 px-2 text-right">Aksi Kelola</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {searchedRotations.map((rot) => (
+                      <tr key={rot.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition">
+                        <td className="py-3 px-2 max-w-sm">
+                          <p className="font-bold text-slate-900 text-xs sm:text-sm">{rot.name}</p>
+                        </td>
+                        <td className="py-3 px-2">
+                          <span className="bg-slate-100 text-slate-700 font-bold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded">
+                            {rot.category}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2">
+                          <p className="text-xs text-slate-600 font-mono">{rot.hours}</p>
+                        </td>
+                        <td className="py-3 px-2">
+                          <div className="flex items-center gap-2">
+                            <div className={`h-4 w-12 rounded-md bg-gradient-to-tr ${rot.color}`} title={rot.color}></div>
+                            <span className={`text-[10px] font-bold ${rot.textAccent}`}>{rot.textAccent.replace('text-', '')}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-2 text-right">
+                          <div className="flex justify-end gap-1.5">
+                            <button
+                              onClick={() => openEditForm(rot)}
+                              className="text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 p-1.5 rounded-lg transition"
+                            >
+                              <Edit3 className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirmRotationId(rot.id)}
+                              className="text-slate-500 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -867,7 +999,8 @@ export default function AdminPanel({
                       {editMode ? 'Edit' : 'Tambah'} {
                         subTab === 'news' ? 'Berita Baru' :
                         subTab === 'jobs' ? 'Lowongan Kerja' :
-                        subTab === 'umkm' ? 'Lapak UMKM' : 'Laporan Warga'
+                        subTab === 'umkm' ? 'Lapak UMKM' :
+                        subTab === 'reports' ? 'Laporan Warga' : 'Giliran RSS'
                       }
                     </h3>
                     <p className="text-xs text-slate-400 mt-0.5">Isi seluruh properti di bawah secara valid dan lengkap.</p>
@@ -1257,6 +1390,112 @@ export default function AdminPanel({
                     </div>
                   )}
 
+                  {/* --- SUBTAB: ROTATION FORM --- */}
+                  {subTab === 'rotation' && (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nama Media Giliran</label>
+                        <input
+                          type="text"
+                          placeholder="Contoh: Radar Madiun"
+                          value={rotationDraft.name || ''}
+                          onChange={(e) => setRotationDraft(prev => ({ ...prev, name: e.target.value }))}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                          required
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Kategori RSS Sumber</label>
+                          <select
+                            value={rotationDraft.category || 'RSS Antara'}
+                            onChange={(e) => setRotationDraft(prev => ({ ...prev, category: e.target.value }))}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                          >
+                            <option value="RSS Antara">RSS Antara (Radar Madiun)</option>
+                            <option value="RSS Detik">RSS Detik (Detik Madiun)</option>
+                            <option value="RSS Pemkab">RSS Pemkab (Pemkab Madiun)</option>
+                            <option value="RSS Pemkot">RSS Pemkot (Pemkot Madiun)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Pilihan Desain Tampilan</label>
+                          <select
+                            value={rotationDraft.color === 'from-blue-600 to-indigo-950' ? 'blue' : 
+                                   rotationDraft.color === 'from-rose-600 to-red-950' ? 'red' :
+                                   rotationDraft.color === 'from-amber-600 to-yellow-950' ? 'amber' :
+                                   rotationDraft.color === 'from-emerald-600 to-teal-950' ? 'emerald' : 'purple'}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === 'blue') {
+                                setRotationDraft(prev => ({
+                                  ...prev,
+                                  color: 'from-blue-600 to-indigo-950',
+                                  textAccent: 'text-blue-600',
+                                  badgeColor: 'bg-blue-500 text-white',
+                                  borderColor: 'border-blue-200'
+                                }));
+                              } else if (val === 'red') {
+                                setRotationDraft(prev => ({
+                                  ...prev,
+                                  color: 'from-rose-600 to-red-950',
+                                  textAccent: 'text-rose-600',
+                                  badgeColor: 'bg-rose-500 text-white',
+                                  borderColor: 'border-rose-200'
+                                }));
+                              } else if (val === 'amber') {
+                                setRotationDraft(prev => ({
+                                  ...prev,
+                                  color: 'from-amber-600 to-yellow-950',
+                                  textAccent: 'text-amber-600',
+                                  badgeColor: 'bg-amber-500 text-white',
+                                  borderColor: 'border-amber-200'
+                                }));
+                              } else if (val === 'emerald') {
+                                setRotationDraft(prev => ({
+                                  ...prev,
+                                  color: 'from-emerald-600 to-teal-950',
+                                  textAccent: 'text-emerald-600',
+                                  badgeColor: 'bg-emerald-500 text-white',
+                                  borderColor: 'border-emerald-200'
+                                }));
+                              } else {
+                                setRotationDraft(prev => ({
+                                  ...prev,
+                                  color: 'from-purple-600 to-violet-950',
+                                  textAccent: 'text-purple-600',
+                                  badgeColor: 'bg-purple-500 text-white',
+                                  borderColor: 'border-purple-200'
+                                }));
+                              }
+                            }}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                          >
+                            <option value="blue">Tema Biru (Gaya Radar)</option>
+                            <option value="red">Tema Merah (Gaya Detik)</option>
+                            <option value="amber">Tema Kuning (Gaya Pemkab)</option>
+                            <option value="emerald">Tema Hijau (Gaya Pemkot)</option>
+                            <option value="purple">Tema Ungu (Kreatif)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Jam Giliran (Format 24 jam dipisahkan koma)</label>
+                        <input
+                          type="text"
+                          placeholder="Contoh: 00:00-02:00, 08:00-10:00, 16:00-18:00"
+                          value={rotationDraft.hours || ''}
+                          onChange={(e) => setRotationDraft(prev => ({ ...prev, hours: e.target.value }))}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                          required
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1 font-medium">Harap isi slot jam giliran 2 jam berturut-turut untuk media ini. Contoh format: 00:00-02:00, 08:00-10:00, 16:00-18:00</p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Submit buttons */}
                   <div className="flex gap-2 pt-4 border-t border-slate-100">
                     <button
@@ -1309,6 +1548,45 @@ export default function AdminPanel({
                   <button
                     type="button"
                     onClick={() => handleDeleteItem(deleteConfirmId)}
+                    className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 rounded-xl text-xs transition shadow"
+                  >
+                    Ya, Hapus Sekarang
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION FOR ROTATION SOURCES */}
+      {deleteConfirmRotationId !== null && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true" id="admin-delete-confirm-rotation-modal">
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity bg-slate-900/60 backdrop-blur-sm" onClick={() => setDeleteConfirmRotationId(null)}></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            
+            <div className="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full animate-fade-in">
+              <div className="p-6 text-center">
+                <div className="mx-auto w-12 h-12 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-600 mb-4 border border-rose-100">
+                  <AlertCircle className="h-6 w-6" />
+                </div>
+                <h3 className="font-extrabold text-slate-900 text-base font-serif mb-1">Konfirmasi Hapus Giliran</h3>
+                <p className="text-slate-500 text-xs sm:text-sm leading-relaxed mb-6">
+                  Apakah Anda benar-benar yakin ingin menghapus jadwal giliran ini? Tindakan ini bersifat permanen dan media ini tidak akan masuk dalam rotasi 2 jam otomatis.
+                </p>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirmRotationId(null)}
+                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 rounded-xl text-xs transition"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteRotationItem(deleteConfirmRotationId)}
                     className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 rounded-xl text-xs transition shadow"
                   >
                     Ya, Hapus Sekarang

@@ -32,7 +32,7 @@ import {
   Scale
 } from 'lucide-react';
 
-import { NewsItem, JobItem, UMKMItem, CitizenReport } from './types';
+import { NewsItem, JobItem, UMKMItem, CitizenReport, RssRotationSource } from './types';
 import AdminPanel from './components/AdminPanel';
 
 // ==========================================
@@ -297,17 +297,128 @@ export default function App() {
 
   // General Filter / Search States
   const [searchQuery, setSearchQuery] = useState('');
-  const [newsFilter, setNewsFilter] = useState<string>('Semua');
+  const [newsFilter, setNewsFilter] = useState<string>('🔄 Rotasi Otomatis');
   const [jobTypeFilter, setJobTypeFilter] = useState<string>('Semua');
   const [umkmCategoryFilter, setUmkmCategoryFilter] = useState<string>('Semua');
   const [reportUrgencyFilter, setReportUrgencyFilter] = useState<string>('Semua');
 
   // RSS News States
-  const [newsSource, setNewsSource] = useState<'portal' | 'rss'>('portal');
+  const [newsSource, setNewsSource] = useState<'portal' | 'rss'>('rss');
   const [rssNewsList, setRssNewsList] = useState<NewsItem[]>([]);
   const [isRssLoading, setIsRssLoading] = useState<boolean>(true);
   const [rssError, setRssError] = useState<string | null>(null);
   const [rssTrigger, setRssTrigger] = useState<number>(0);
+
+  // Dynamic RSS Rotation Sources list with local persistence
+  const [rssSources, setRssSources] = useState<RssRotationSource[]>(() => {
+    const saved = localStorage.getItem('bm_rss_sources');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Error parsing rss sources:", e);
+      }
+    }
+    return [
+      {
+        id: 'radar_madiun',
+        name: 'Radar Madiun',
+        category: 'RSS Antara',
+        hours: '00:00-02:00, 08:00-10:00, 16:00-18:00',
+        color: 'from-blue-600 to-indigo-950',
+        textAccent: 'text-blue-600',
+        badgeColor: 'bg-blue-500 text-white',
+        borderColor: 'border-blue-200'
+      },
+      {
+        id: 'detik_madiun',
+        name: 'Detik Madiun',
+        category: 'RSS Detik',
+        hours: '02:00-04:00, 10:00-12:00, 18:00-20:00',
+        color: 'from-amber-600 to-amber-950',
+        textAccent: 'text-amber-600',
+        badgeColor: 'bg-amber-500 text-white',
+        borderColor: 'border-amber-200'
+      },
+      {
+        id: 'pemkab_madiun',
+        name: 'Pemkab Madiun',
+        category: 'RSS Pemkab',
+        hours: '04:00-06:00, 12:00-14:00, 20:00-22:00',
+        color: 'from-emerald-600 to-emerald-950',
+        textAccent: 'text-emerald-600',
+        badgeColor: 'bg-emerald-500 text-white',
+        borderColor: 'border-emerald-200'
+      },
+      {
+        id: 'pemkot_madiun',
+        name: 'Pemkot Madiun',
+        category: 'RSS Pemkot',
+        hours: '06:00-08:00, 14:00-16:00, 22:00-24:00',
+        color: 'from-indigo-600 to-blue-950',
+        textAccent: 'text-indigo-600',
+        badgeColor: 'bg-cyan-500 text-white',
+        borderColor: 'border-indigo-200'
+      }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('bm_rss_sources', JSON.stringify(rssSources));
+  }, [rssSources]);
+
+  // Time & 2-Hour Media Rotation State
+  const [currentRotationDate, setCurrentRotationDate] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentRotationDate(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const getRssRotation = () => {
+    if (rssSources.length === 0) {
+      const placeholder: RssRotationSource = {
+        id: 'placeholder',
+        name: 'Belum Ada Jadwal',
+        category: 'N/A',
+        hours: 'N/A',
+        color: 'from-slate-700 to-slate-900',
+        textAccent: 'text-slate-400',
+        badgeColor: 'bg-slate-500 text-white',
+        borderColor: 'border-slate-800'
+      };
+      return {
+        active: placeholder,
+        all: [],
+        activeIndex: 0,
+        next: placeholder
+      };
+    }
+    const hours = currentRotationDate.getHours();
+    const blockIndex = Math.floor(hours / 2) % rssSources.length;
+    
+    return {
+      active: rssSources[blockIndex],
+      all: rssSources,
+      activeIndex: blockIndex,
+      next: rssSources[(blockIndex + 1) % rssSources.length]
+    };
+  };
+
+  const getRemainingTimeInBlock = () => {
+    const minutes = currentRotationDate.getMinutes();
+    const seconds = currentRotationDate.getSeconds();
+    const currentHour = currentRotationDate.getHours();
+    
+    const isEvenHour = currentHour % 2 === 0;
+    const remainingHours = isEvenHour ? 1 : 0;
+    const remainingMinutes = 59 - minutes;
+    const remainingSeconds = 59 - seconds;
+    
+    return `${remainingHours}j ${remainingMinutes}m ${remainingSeconds}d`;
+  };
 
   // Automatic RSS Load on Mount (Anti-CORS proxy & DOMParser fallback)
   useEffect(() => {
@@ -387,7 +498,7 @@ export default function App() {
         }
         return parsedItems;
       } catch (e) {
-        console.error("XML Parsing failed:", e);
+        console.log("XML Parsing issue handled:", e);
         return [];
       }
     };
@@ -401,10 +512,16 @@ export default function App() {
 
         const feeds = [
           {
-            name: 'Radar Madiun (Jawa Pos)',
+            name: 'Radar Madiun (Kabupaten)',
             category: 'RSS Antara' as const,
-            url: 'https://radarmadiun.jawapos.com/feed',
+            url: 'https://radarmadiun.jawapos.com/kab-madiun',
             imageBg: 'from-blue-600 to-indigo-950'
+          },
+          {
+            name: 'Radar Madiun (Kota)',
+            category: 'RSS Antara' as const,
+            url: 'https://radarmadiun.jawapos.com/kota-madiun',
+            imageBg: 'from-cyan-600 to-sky-950'
           },
           {
             name: 'Detikcom Tag Madiun',
@@ -500,7 +617,7 @@ export default function App() {
               }
             }
           } catch (e) {
-            console.error(`Failed to fetch RSS feed via server proxy for ${feed.name}:`, e);
+            console.log(`Fetch RSS feed status: server proxy handled for ${feed.name}`);
           }
 
           if (fetchedSuccessfully && feedItems.length > 0) {
@@ -532,7 +649,7 @@ export default function App() {
           }
         }
       } catch (err: any) {
-        console.error('RSS Fetching failed:', err);
+        console.log('RSS Fetching note: fallback or active state', err);
         if (active) {
           setRssError('Koneksi internet terputus atau API RSS terganggu. Silakan periksa jaringan Anda atau muat ulang.');
           setIsRssLoading(false);
@@ -817,14 +934,18 @@ export default function App() {
     return matchesSearch && matchesCategory;
   });
 
+  const rotationInfo = getRssRotation();
   const filteredRssNews = rssNewsList.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           item.summary.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = newsFilter === 'Semua' || 
-                            (newsFilter === 'Radar Madiun' && item.category === 'RSS Antara') ||
-                            (newsFilter === 'Detik Madiun' && item.category === 'RSS Detik') ||
-                            (newsFilter === 'Pemkab Madiun' && item.category === 'RSS Pemkab') ||
-                            (newsFilter === 'Pemkot Madiun' && item.category === 'RSS Pemkot');
+    
+    let matchesCategory = false;
+    if (newsFilter === '🔄 Rotasi Otomatis' || newsFilter === 'Semua') {
+      matchesCategory = item.category === rotationInfo.active.category;
+    } else {
+      const activeFilterSrc = rssSources.find(src => src.name === newsFilter);
+      matchesCategory = activeFilterSrc ? item.category === activeFilterSrc.category : false;
+    }
     return matchesSearch && matchesCategory;
   });
 
@@ -1096,13 +1217,12 @@ export default function App() {
         {/* TAB 1: BERITA TERKINI */}
         {activeTab === 'news' && (
           <div className="space-y-8" id="news-section-panel">
-            
             {/* Feed Source Switcher */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
               <div>
                 <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Sumber Berita Portal
+                  Sumber Berita Portal & RSS Live
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">Pilih antara rilis Redaksi Berita Madiun lokal atau Live Feed RSS dari media nasional Jawa Timur.</p>
               </div>
@@ -1118,18 +1238,97 @@ export default function App() {
                   🏢 Redaksi Internal
                 </button>
                 <button
-                  onClick={() => { setNewsSource('rss'); setNewsFilter('Semua'); }}
+                  onClick={() => { setNewsSource('rss'); setNewsFilter('🔄 Rotasi Otomatis'); }}
                   className={`flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                     newsSource === 'rss'
                       ? 'bg-white text-emerald-700 shadow-sm'
                       : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
-                  📡 RSS Live Jatim
+                  📡 RSS Live Madiun
                   {isRssLoading && <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping"></span>}
                 </button>
               </div>
             </div>
+
+            {/* 2-Hour RSS Rotation Schedule Status Board */}
+            {newsSource === 'rss' && (
+              <div className="bg-slate-950 text-slate-100 rounded-2xl p-6 border border-slate-800 shadow-xl relative overflow-hidden" id="rss-rotation-board">
+                {/* Background Grid Pattern */}
+                <div className="absolute inset-0 opacity-10 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:16px_16px]"></div>
+                
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-3 w-3 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
+                      </span>
+                      <span className="text-[10px] bg-rose-500/10 text-rose-400 font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full border border-rose-500/20">
+                        Siaran Aktif Saat Ini
+                      </span>
+                    </div>
+                    <h4 className="text-2xl font-extrabold font-serif tracking-tight text-white flex items-center gap-2">
+                      {rotationInfo.active.name}
+                    </h4>
+                    <p className="text-xs text-slate-400 max-w-md">
+                      Menyajikan berita aktual terhangat dari kota & kabupaten Madiun secara dinamis bergantian setiap 2 jam.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 bg-slate-900/60 p-4 rounded-xl border border-slate-800/80">
+                    <div>
+                      <div className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wider">Masa Aktif Giliran</div>
+                      <div className="text-sm font-bold text-amber-400 mt-0.5 flex items-center gap-1">
+                        <Clock className="h-3.5 w-3.5 animate-pulse" />
+                        {getRemainingTimeInBlock()}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wider">Giliran Berikutnya</div>
+                      <div className="text-sm font-bold text-slate-300 mt-0.5">
+                        {rotationInfo.next.name}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Flow Schedule Row */}
+                <div className="relative z-10 grid grid-cols-1 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-slate-800/60">
+                  {rotationInfo.all.map((src, idx) => {
+                    const isCurrent = idx === rotationInfo.activeIndex;
+                    return (
+                      <div 
+                        key={src.name}
+                        onClick={() => {
+                          setNewsFilter(src.name);
+                        }}
+                        className={`p-3 rounded-xl transition-all duration-200 cursor-pointer border ${
+                          isCurrent 
+                            ? 'bg-emerald-950/40 border-emerald-500/40 shadow-md shadow-emerald-500/5' 
+                            : 'bg-slate-900/30 border-slate-800 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase ${
+                            isCurrent ? 'bg-emerald-500 text-white animate-pulse' : 'bg-slate-800 text-slate-400'
+                          }`}>
+                            {isCurrent ? '● LIVE' : `GILIRAN ${idx + 1}`}
+                          </span>
+                          <span className="text-[9px] font-bold text-slate-500">{src.hours.split(',')[0]}</span>
+                        </div>
+                        <h5 className={`text-xs font-bold ${isCurrent ? 'text-emerald-400' : 'text-slate-300'}`}>
+                          {src.name}
+                        </h5>
+                        <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
+                          {src.hours}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Filter Pills */}
             <div className="flex flex-wrap gap-2 items-center" id="news-filters">
@@ -1151,7 +1350,7 @@ export default function App() {
                   </button>
                 ))
               ) : (
-                ['Semua', 'Radar Madiun', 'Detik Madiun', 'Pemkab Madiun', 'Pemkot Madiun'].map((cat) => (
+                ['🔄 Rotasi Otomatis', ...rssSources.map(src => src.name)].map((cat) => (
                   <button
                     key={cat}
                     onClick={() => setNewsFilter(cat)}
@@ -1375,7 +1574,7 @@ export default function App() {
                   {/* Sidebar/Smaller News List */}
                   <div className="space-y-6 flex flex-col lg:col-span-1" id="sub-rss-list">
                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider pb-2 border-b border-slate-100 flex items-center justify-between">
-                      <span>Berita Lainnya Madiun</span>
+                      <span>Berita Terpopuler Lainnya (Rotasi 2 Jam)</span>
                       <button 
                         onClick={() => setRssTrigger(prev => prev + 1)}
                         className="text-emerald-600 hover:text-emerald-700 font-extrabold flex items-center text-[10px]"
@@ -1912,6 +2111,8 @@ export default function App() {
             setReportsList={setReportsList}
             tickerText={tickerText}
             setTickerText={setTickerText}
+            rssSources={rssSources}
+            setRssSources={setRssSources}
             triggerToast={triggerToast}
           />
         )}

@@ -21,6 +21,8 @@ export interface JobItem {
   salary: string;
   requirements: string[];
   postedAt: string;
+  link?: string;
+  description?: string;
 }
 
 export interface UMKMItem {
@@ -47,3 +49,15 @@ export interface CitizenReport {
   description: string;
   isUpvoted?: boolean;
 }
+
+export interface RssRotationSource {
+  id: string;
+  name: string;
+  category: string;
+  hours: string;
+  color: string;
+  textAccent: string;
+  badgeColor: string;
+  borderColor: string;
+}
+

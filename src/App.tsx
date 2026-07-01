@@ -26,60 +26,13 @@ import {
   Phone,
   Tag,
   ThumbsDown,
-  AlertCircle
+  AlertCircle,
+  ShieldCheck,
+  RefreshCw
 } from 'lucide-react';
 
-// ==========================================
-// TYPES & INTERFACES
-// ==========================================
-
-interface NewsItem {
-  id: number;
-  title: string;
-  category: 'Pembangunan' | 'Kuliner' | 'Budaya' | 'Ekonomi' | 'Pendidikan';
-  date: string;
-  readTime: string;
-  summary: string;
-  content: string;
-  author: string;
-  imageBg: string; // custom gradient/styling
-}
-
-interface JobItem {
-  id: number;
-  title: string;
-  company: string;
-  location: string;
-  type: 'Full-time' | 'Part-time' | 'Freelance';
-  salary: string;
-  requirements: string[];
-  postedAt: string;
-}
-
-interface UMKMItem {
-  id: number;
-  name: string;
-  price: number;
-  category: 'Makanan' | 'Kerajinan' | 'Jasa' | 'Fashion';
-  description: string;
-  contact: string;
-  seller: string;
-  rating: number;
-  imageBg: string;
-}
-
-interface CitizenReport {
-  id: number;
-  title: string;
-  reporter: string;
-  category: 'Lalu Lintas' | 'Kehilangan' | 'Darurat' | 'Event' | 'Fasilitas';
-  time: string;
-  urgency: 'Rendah' | 'Sedang' | 'Tinggi';
-  upvotes: number;
-  comments: { id: number; author: string; text: string; time: string }[];
-  description: string;
-  isUpvoted?: boolean;
-}
+import { NewsItem, JobItem, UMKMItem, CitizenReport } from './types';
+import AdminPanel from './components/AdminPanel';
 
 // ==========================================
 // INITIAL MOCK DATA
@@ -293,8 +246,16 @@ export default function App() {
   // ==========================================
   // STATE MANAGEMENT
   // ==========================================
-  const [activeTab, setActiveTab] = useState<'news' | 'jobs' | 'umkm' | 'reports'>('news');
+  const [activeTab, setActiveTab] = useState<'news' | 'jobs' | 'umkm' | 'reports' | 'admin'>('news');
   
+  const [tickerText, setTickerText] = useState<string>(() => {
+    return localStorage.getItem('bm_ticker_text') || 'Festival Pecel Alun-Alun dimulai lusa, cuaca diprediksi berawan.';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('bm_ticker_text', tickerText);
+  }, [tickerText]);
+
   // Data States (loaded from localStorage or fallback to initial data)
   const [newsList, setNewsList] = useState<NewsItem[]>(() => {
     const saved = localStorage.getItem('bm_news');
@@ -339,6 +300,240 @@ export default function App() {
   const [jobTypeFilter, setJobTypeFilter] = useState<string>('Semua');
   const [umkmCategoryFilter, setUmkmCategoryFilter] = useState<string>('Semua');
   const [reportUrgencyFilter, setReportUrgencyFilter] = useState<string>('Semua');
+
+  // RSS News States
+  const [newsSource, setNewsSource] = useState<'portal' | 'rss'>('portal');
+  const [rssNewsList, setRssNewsList] = useState<NewsItem[]>([]);
+  const [isRssLoading, setIsRssLoading] = useState<boolean>(true);
+  const [rssError, setRssError] = useState<string | null>(null);
+  const [rssTrigger, setRssTrigger] = useState<number>(0);
+
+  // Automatic RSS Load on Mount (Anti-CORS proxy & DOMParser fallback)
+  useEffect(() => {
+    let active = true;
+
+    // Helper to parse XML feed in case rss2json fails
+    const parseXmlFeed = (xmlText: string, category: 'RSS Antara' | 'RSS Detik', feedUrl: string, imageBg: string) => {
+      try {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+        const items = xmlDoc.getElementsByTagName("item");
+        const parsedItems: NewsItem[] = [];
+        
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          const title = item.getElementsByTagName("title")[0]?.textContent || 'Berita Terkini';
+          const link = item.getElementsByTagName("link")[0]?.textContent || feedUrl;
+          const pubDateStr = item.getElementsByTagName("pubDate")[0]?.textContent || '';
+          const description = item.getElementsByTagName("description")[0]?.textContent || '';
+          const content = item.getElementsByTagName("content:encoded")[0]?.textContent || item.getElementsByTagName("content")[0]?.textContent || '';
+          
+          // Find thumbnail from media:content, enclosure, or description image tags
+          let thumbnail = '';
+          const mediaContent = item.getElementsByTagName("media:content")[0] || item.getElementsByTagName("media:thumbnail")[0];
+          if (mediaContent) {
+            thumbnail = mediaContent.getAttribute("url") || '';
+          }
+          if (!thumbnail) {
+            const enclosure = item.getElementsByTagName("enclosure")[0];
+            if (enclosure) {
+              thumbnail = enclosure.getAttribute("url") || '';
+            }
+          }
+          if (!thumbnail) {
+            const imgRegex = /<img[^>]+src="([^">]+)"/i;
+            const match = imgRegex.exec(description || content || '');
+            if (match && match[1]) {
+              thumbnail = match[1];
+            }
+          }
+
+          const cleanDesc = (description || content || '')
+            .replace(/<[^>]*>/g, '')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&ldquo;/g, '"')
+            .replace(/&rdquo;/g, '"')
+            .replace(/&rsquo;/g, "'")
+            .replace(/&amp;/g, '&')
+            .trim();
+
+          parsedItems.push({
+            id: Date.now() + i + Math.floor(Math.random() * 1000) + (category === 'RSS Detik' ? 10000 : 20000),
+            title: title,
+            category: category,
+            date: pubDateStr ? new Date(pubDateStr).toLocaleDateString('id-ID', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            }) + ' WIB' : 'Baru saja',
+            readTime: '3 Menit Baca',
+            summary: cleanDesc,
+            content: content || cleanDesc,
+            author: category === 'RSS Detik' ? 'Detik Jatim' : 'Antara Jatim',
+            imageBg: imageBg,
+            link: link,
+            thumbnail: thumbnail
+          });
+        }
+        return parsedItems;
+      } catch (e) {
+        console.error("XML Parsing failed:", e);
+        return [];
+      }
+    };
+
+    const fetchRssFeeds = async () => {
+      try {
+        if (active) {
+          setIsRssLoading(true);
+          setRssError(null);
+        }
+
+        const feeds = [
+          {
+            name: 'ANTARA News Jatim (Madiun Raya)',
+            category: 'RSS Antara' as const,
+            url: 'https://jatim.antaranews.com/rss/jatim.xml',
+            imageBg: 'from-blue-600 to-indigo-950'
+          },
+          {
+            name: 'Detikcom Jatim',
+            category: 'RSS Detik' as const,
+            url: 'https://www.detik.com/jatim/rss',
+            imageBg: 'from-amber-600 to-amber-950'
+          }
+        ];
+
+        let allItems: NewsItem[] = [];
+        let failedFeeds: string[] = [];
+
+        for (const feed of feeds) {
+          let feedItems: NewsItem[] = [];
+          let fetchedSuccessfully = false;
+
+          // Attempt 1: rss2json proxy (Fastest JSON parsing)
+          try {
+            const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}`;
+            const response = await fetch(proxyUrl);
+            
+            if (response.ok) {
+              const data = await response.json();
+              if (data.status === 'ok' && Array.isArray(data.items)) {
+                feedItems = data.items.map((item: any, idx: number) => {
+                  let thumbnail = '';
+                  if (item.thumbnail) {
+                    thumbnail = item.thumbnail;
+                  } else if (item.enclosure && item.enclosure.link) {
+                    thumbnail = item.enclosure.link;
+                  } else {
+                    const imgRegex = /<img[^>]+src="([^">]+)"/i;
+                    const match = imgRegex.exec(item.description || item.content || '');
+                    if (match && match[1]) {
+                      thumbnail = match[1];
+                    }
+                  }
+
+                  const cleanDesc = (item.description || item.content || '')
+                    .replace(/<[^>]*>/g, '')
+                    .replace(/&nbsp;/g, ' ')
+                    .replace(/&ldquo;/g, '"')
+                    .replace(/&rdquo;/g, '"')
+                    .replace(/&rsquo;/g, "'")
+                    .replace(/&amp;/g, '&')
+                    .trim();
+
+                  return {
+                    id: Date.now() + idx + Math.floor(Math.random() * 1000) + (feed.category === 'RSS Detik' ? 10000 : 20000),
+                    title: item.title || 'Berita Jatim Terkini',
+                    category: feed.category,
+                    date: item.pubDate ? new Date(item.pubDate).toLocaleDateString('id-ID', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    }) + ' WIB' : 'Baru saja',
+                    readTime: '3 Menit Baca',
+                    summary: cleanDesc,
+                    content: item.content || cleanDesc,
+                    author: item.author || (feed.category === 'RSS Detik' ? 'Detik Jatim' : 'Antara Jatim'),
+                    imageBg: feed.imageBg,
+                    link: item.link || feed.url,
+                    thumbnail: thumbnail
+                  };
+                });
+                fetchedSuccessfully = true;
+              }
+            }
+          } catch (e) {
+            console.warn(`Attempt 1 (rss2json) failed for ${feed.name}, trying fallback...`, e);
+          }
+
+          // Attempt 2: Fallback to AllOrigins XML Proxy (Extremely stable fallback)
+          if (!fetchedSuccessfully) {
+            try {
+              const fallbackUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(feed.url)}`;
+              const response = await fetch(fallbackUrl);
+              if (response.ok) {
+                const data = await response.json();
+                if (data && data.contents) {
+                  feedItems = parseXmlFeed(data.contents, feed.category, feed.url, feed.imageBg);
+                  if (feedItems.length > 0) {
+                    fetchedSuccessfully = true;
+                  }
+                }
+              }
+            } catch (e) {
+              console.error(`Attempt 2 (AllOrigins) also failed for ${feed.name}:`, e);
+            }
+          }
+
+          if (fetchedSuccessfully && feedItems.length > 0) {
+            // Apply filtering for Detik Jatim if required
+            let filteredFeedItems = feedItems;
+            if (feed.category === 'RSS Detik') {
+              const keywords = ["madiun", "caruban", "mejayan", "sogaten"];
+              filteredFeedItems = feedItems.filter((item: NewsItem) => {
+                const titleLower = item.title.toLowerCase();
+                const summaryLower = item.summary.toLowerCase();
+                return keywords.some(k => titleLower.includes(k) || summaryLower.includes(k));
+              });
+            }
+            allItems = [...allItems, ...filteredFeedItems];
+          } else {
+            failedFeeds.push(feed.name);
+          }
+        }
+
+        if (active) {
+          if (allItems.length > 0) {
+            setRssNewsList(allItems);
+            setIsRssLoading(false);
+            if (failedFeeds.length > 0) {
+              triggerToast(`Beberapa feed RSS (${failedFeeds.join(', ')}) lambat direspons, menampilkan feed yang berhasil dimuat.`, 'info');
+            }
+          } else {
+            throw new Error(`Gagal menghubungi server RSS atau proxy terblokir untuk semua sumber.`);
+          }
+        }
+      } catch (err: any) {
+        console.error('RSS Fetching failed:', err);
+        if (active) {
+          setRssError('Koneksi internet terputus atau API RSS terganggu. Silakan periksa jaringan Anda atau muat ulang.');
+          setIsRssLoading(false);
+          triggerToast('Koneksi terputus atau server RSS lambat. Menampilkan Berita Portal lokal.', 'error');
+        }
+      }
+    };
+
+    fetchRssFeeds();
+
+    return () => {
+      active = false;
+    };
+  }, [rssTrigger]);
 
   // Interactive Detail Modals
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
@@ -608,6 +803,40 @@ export default function App() {
     return matchesSearch && matchesCategory;
   });
 
+  const filteredRssNews = rssNewsList.filter(item => {
+    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          item.summary.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = newsFilter === 'Semua' || 
+                            (newsFilter === 'Antara Jatim' && item.category === 'RSS Antara') ||
+                            (newsFilter === 'Detik Jatim' && item.category === 'RSS Detik');
+    return matchesSearch && matchesCategory;
+  });
+
+  const formatRssSnippet = (text: string, link: string) => {
+    const cleanText = text.trim();
+    if (!cleanText) return null;
+    const words = cleanText.split(/\s+/);
+    if (words.length <= 20) {
+      return (
+        <span>
+          {cleanText}{' '}
+          <a href={link} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:text-emerald-700 font-extrabold ml-1">
+            Baca Selengkapnya
+          </a>
+        </span>
+      );
+    }
+    const truncated = words.slice(0, 20).join(' ');
+    return (
+      <span>
+        {truncated}...{' '}
+        <a href={link} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:text-emerald-700 font-extrabold ml-1">
+          Baca Selengkapnya
+        </a>
+      </span>
+    );
+  };
+
   const filteredJobs = jobsList.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           item.company.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -702,7 +931,7 @@ export default function App() {
           <div className="flex items-center space-x-2">
             <span className="inline-block h-2 w-2 rounded-full bg-amber-400 animate-ping"></span>
             <span className="text-emerald-300 font-medium">Info Madiun Hari Ini:</span>
-            <span>Festival Pecel Alun-Alun dimulai lusa, cuaca diprediksi berawan.</span>
+            <span>{tickerText}</span>
           </div>
           <div className="flex items-center space-x-6 text-emerald-300">
             <span>📰 {newsList.length} Berita</span>
@@ -802,33 +1031,48 @@ export default function App() {
               <span>Kejadian / Viral</span>
               <span className="bg-slate-200 text-slate-700 text-xs px-1.5 py-0.5 rounded-full font-bold">{filteredReports.length}</span>
             </button>
+
+            <button
+              onClick={() => handleTabChange('admin')}
+              className={`flex items-center space-x-2 px-4 py-3 rounded-lg text-sm font-bold transition duration-200 ${
+                activeTab === 'admin'
+                  ? 'bg-white text-emerald-700 shadow-sm border-b border-emerald-600/10'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              }`}
+              id="tab-admin"
+            >
+              <ShieldCheck className="h-4.5 w-4.5 text-emerald-600" />
+              <span>Kelola Portal</span>
+            </button>
           </nav>
 
           {/* SHARED SEARCH INPUT */}
-          <div className="relative w-full sm:w-72" id="search-container">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-              <Search className="h-4 w-4" />
-            </span>
-            <input
-              type="text"
-              placeholder={`Cari di ${
-                activeTab === 'news' ? 'Berita' : 
-                activeTab === 'jobs' ? 'Loker' : 
-                activeTab === 'umkm' ? 'Lapak UMKM' : 'Aduan Warga'
-              }...`}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-150"
-            />
-            {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
+          {activeTab !== 'admin' && (
+            <div className="relative w-full sm:w-72" id="search-container">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                <Search className="h-4 w-4" />
+              </span>
+              <input
+                type="text"
+                placeholder={`Cari di ${
+                  activeTab === 'news' ? 'Berita' : 
+                  activeTab === 'jobs' ? 'Loker' : 
+                  activeTab === 'umkm' ? 'Lapak UMKM' : 'Aduan Warga'
+                }...`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-150"
+              />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* TAB CONTENTS */}
@@ -837,35 +1081,85 @@ export default function App() {
         {activeTab === 'news' && (
           <div className="space-y-8" id="news-section-panel">
             
+            {/* Feed Source Switcher */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Sumber Berita Portal
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">Pilih antara rilis Redaksi Berita Madiun lokal atau Live Feed RSS dari media nasional Jawa Timur.</p>
+              </div>
+              <div className="flex bg-slate-100 p-1 rounded-xl w-full sm:w-auto">
+                <button
+                  onClick={() => { setNewsSource('portal'); setNewsFilter('Semua'); }}
+                  className={`flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                    newsSource === 'portal'
+                      ? 'bg-white text-emerald-700 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  🏢 Redaksi Internal
+                </button>
+                <button
+                  onClick={() => { setNewsSource('rss'); setNewsFilter('Semua'); }}
+                  className={`flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                    newsSource === 'rss'
+                      ? 'bg-white text-emerald-700 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  📡 RSS Live Jatim
+                  {isRssLoading && <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping"></span>}
+                </button>
+              </div>
+            </div>
+
             {/* Filter Pills */}
             <div className="flex flex-wrap gap-2 items-center" id="news-filters">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2 flex items-center">
-                <Filter className="h-3 w-3 mr-1" /> Kategori Berita:
+                <Filter className="h-3 w-3 mr-1" /> Saring Berita:
               </span>
-              {['Semua', 'Pembangunan', 'Kuliner', 'Budaya', 'Ekonomi'].map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setNewsFilter(cat)}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition duration-200 ${
-                    newsFilter === cat
-                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/10'
-                      : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
+              {newsSource === 'portal' ? (
+                ['Semua', 'Pembangunan', 'Kuliner', 'Budaya', 'Ekonomi'].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setNewsFilter(cat)}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition duration-200 ${
+                      newsFilter === cat
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/10'
+                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))
+              ) : (
+                ['Semua', 'Antara Jatim', 'Detik Jatim'].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setNewsFilter(cat)}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition duration-200 ${
+                      newsFilter === cat
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/10'
+                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))
+              )}
             </div>
 
-            {filteredNews.length === 0 ? (
-              <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 max-w-lg mx-auto">
-                <Info className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-                <h3 className="text-lg font-bold text-slate-700">Berita tidak ditemukan</h3>
-                <p className="text-sm text-slate-400 mt-1">Coba sesuaikan kata pencarian atau pilih kategori berita lainnya.</p>
-              </div>
-            ) : (
-              <>
-                {/* News Grid Layout */}
+            {/* PORTAL NEWS VIEW */}
+            {newsSource === 'portal' && (
+              filteredNews.length === 0 ? (
+                <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 max-w-lg mx-auto">
+                  <Info className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                  <h3 className="text-lg font-bold text-slate-700">Berita tidak ditemukan</h3>
+                  <p className="text-sm text-slate-400 mt-1">Coba sesuaikan kata pencarian atau pilih kategori berita lainnya.</p>
+                </div>
+              ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8" id="news-content-grid">
                   
                   {/* First item is featured (takes 2 cols if exists) */}
@@ -948,7 +1242,188 @@ export default function App() {
                   </div>
 
                 </div>
-              </>
+              )
+            )}
+
+            {/* RSS NEWS VIEW */}
+            {newsSource === 'rss' && (
+              isRssLoading ? (
+                /* Loading Skeleton */
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-pulse" id="rss-loading-skeleton">
+                  <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-100 overflow-hidden p-6 space-y-6">
+                    <div className="h-64 sm:h-80 bg-slate-100 rounded-2xl"></div>
+                    <div className="space-y-3">
+                      <div className="h-6 bg-slate-100 rounded w-3/4"></div>
+                      <div className="h-4 bg-slate-100 rounded w-1/2"></div>
+                      <div className="h-4 bg-slate-100 rounded w-5/6"></div>
+                    </div>
+                  </div>
+                  <div className="space-y-6 lg:col-span-1">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="bg-white p-5 rounded-2xl border border-slate-100 space-y-3">
+                        <div className="h-4 bg-slate-100 rounded w-1/3"></div>
+                        <div className="h-5 bg-slate-100 rounded w-full"></div>
+                        <div className="h-4 bg-slate-100 rounded w-5/6"></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : rssError && rssNewsList.length === 0 ? (
+                /* Error state if internet fails */
+                <div className="bg-white rounded-2xl p-12 text-center border border-rose-100 max-w-lg mx-auto shadow-sm">
+                  <AlertCircle className="h-10 w-10 text-rose-500 mx-auto mb-3" />
+                  <h3 className="text-lg font-bold text-slate-700">Gagal Membaca RSS Live</h3>
+                  <p className="text-sm text-slate-400 mt-1 mb-5">{rssError}</p>
+                  <button
+                    onClick={() => setRssTrigger(prev => prev + 1)}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs transition duration-150 shadow-md flex items-center justify-center gap-1.5 mx-auto"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" /> Coba Muat Ulang Feed
+                  </button>
+                </div>
+              ) : filteredRssNews.length === 0 ? (
+                /* No news items matches filter */
+                <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 max-w-lg mx-auto">
+                  <Info className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                  <h3 className="text-lg font-bold text-slate-700">Berita RSS Jatim tidak ditemukan</h3>
+                  <p className="text-sm text-slate-400 mt-1">Coba sesuaikan kata pencarian atau ganti kategori penyaring.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8" id="rss-news-grid">
+                  
+                  {/* First item is featured (takes 2 cols if exists) */}
+                  {filteredRssNews.length > 0 && (
+                    <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition duration-200 flex flex-col h-full" id="featured-rss-card">
+                      <div className="h-64 sm:h-80 relative overflow-hidden flex flex-col justify-end p-6 text-white bg-slate-900">
+                        {filteredRssNews[0].thumbnail ? (
+                          <>
+                            <img 
+                              src={filteredRssNews[0].thumbnail} 
+                              alt={filteredRssNews[0].title} 
+                              className="absolute inset-0 w-full h-full object-cover transition duration-300 hover:scale-105"
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/40 to-transparent"></div>
+                          </>
+                        ) : (
+                          <div className={`absolute inset-0 bg-gradient-to-tr ${filteredRssNews[0].imageBg}`}></div>
+                        )}
+                        <div className="absolute inset-0 opacity-15 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:14px_24px]"></div>
+                        <div className="relative z-10">
+                          <span className="bg-amber-500 text-white font-extrabold text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-md">
+                            {filteredRssNews[0].category === 'RSS Antara' ? 'ANTARA Jatim' : 'Detikcom Jatim'}
+                          </span>
+                          <a 
+                            href={filteredRssNews[0].link} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="block hover:text-emerald-300 transition-colors"
+                          >
+                            <h3 className="text-xl sm:text-2xl md:text-3xl font-extrabold font-serif tracking-tight mt-3 mb-2 leading-tight drop-shadow-sm">
+                              {filteredRssNews[0].title}
+                            </h3>
+                          </a>
+                          <div className="flex items-center space-x-4 text-xs text-slate-200 font-medium mt-1">
+                            <span className="flex items-center"><Clock className="h-3.5 w-3.5 mr-1" /> {filteredRssNews[0].date}</span>
+                            <span>•</span>
+                            <span className="flex items-center gap-1">
+                              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping"></span> Live Feed
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-6 flex flex-col flex-1 justify-between">
+                        <div className="text-slate-600 text-sm leading-relaxed mb-4">
+                          {formatRssSnippet(filteredRssNews[0].summary, filteredRssNews[0].link || '#')}
+                        </div>
+                        <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                          <div className="flex items-center space-x-2">
+                            <div className="h-8 w-8 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold">
+                              {filteredRssNews[0].author.substring(0, 2).toUpperCase()}
+                            </div>
+                            <span className="text-xs font-bold text-slate-700">{filteredRssNews[0].author}</span>
+                          </div>
+                          <a 
+                            href={filteredRssNews[0].link} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-emerald-600 hover:text-emerald-700 text-xs font-extrabold flex items-center group"
+                          >
+                            Baca Artikel Lengkap <ChevronRight className="h-4 w-4 ml-0.5 group-hover:translate-x-0.5 transition duration-150" />
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Sidebar/Smaller News List */}
+                  <div className="space-y-6 flex flex-col lg:col-span-1" id="sub-rss-list">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider pb-2 border-b border-slate-100 flex items-center justify-between">
+                      <span>Berita Lainnya Jatim</span>
+                      <button 
+                        onClick={() => setRssTrigger(prev => prev + 1)}
+                        className="text-emerald-600 hover:text-emerald-700 font-extrabold flex items-center text-[10px]"
+                        title="Segarkan Feed"
+                      >
+                        <RefreshCw className="h-3 w-3 mr-1" /> REFRESH
+                      </button>
+                    </h4>
+                    {filteredRssNews.slice(1).map((news) => (
+                      <div 
+                        key={news.id} 
+                        className="bg-white rounded-2xl border border-slate-100 hover:border-slate-200 shadow-sm hover:shadow transition duration-200 flex flex-col justify-between overflow-hidden"
+                      >
+                        {news.thumbnail && (
+                          <div className="h-36 relative overflow-hidden shrink-0">
+                            <img 
+                              src={news.thumbnail} 
+                              alt={news.title} 
+                              className="w-full h-full object-cover transition duration-300 hover:scale-105"
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent"></div>
+                          </div>
+                        )}
+                        <div className="p-5 flex-1 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="bg-emerald-50 text-emerald-800 font-bold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded">
+                                {news.category === 'RSS Antara' ? 'ANTARA Jatim' : 'Detikcom Jatim'}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-semibold">{news.date}</span>
+                            </div>
+                            <a 
+                              href={news.link} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="hover:text-emerald-700 block transition-colors"
+                            >
+                              <h5 className="font-extrabold text-sm font-serif text-slate-900 line-clamp-2 leading-snug mb-2">
+                                {news.title}
+                              </h5>
+                            </a>
+                            <div className="text-slate-500 text-xs leading-relaxed mb-4">
+                              {formatRssSnippet(news.summary, news.link || '#')}
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between pt-3 border-t border-slate-50 text-[11px] mt-2">
+                            <span className="font-bold text-slate-600">{news.author}</span>
+                            <a 
+                              href={news.link} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-emerald-600 hover:text-emerald-700 font-extrabold"
+                            >
+                              Buka Media →
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                </div>
+              )
             )}
           </div>
         )}
@@ -1408,6 +1883,23 @@ export default function App() {
           </div>
         )}
 
+        {/* TAB 5: ADMIN PANEL PORTAL */}
+        {activeTab === 'admin' && (
+          <AdminPanel
+            newsList={newsList}
+            setNewsList={setNewsList}
+            jobsList={jobsList}
+            setJobsList={setJobsList}
+            umkmList={umkmList}
+            setUmkmList={setUmkmList}
+            reportsList={reportsList}
+            setReportsList={setReportsList}
+            tickerText={tickerText}
+            setTickerText={setTickerText}
+            triggerToast={triggerToast}
+          />
+        )}
+
       </main>
 
       {/* FOOTER */}
@@ -1432,6 +1924,7 @@ export default function App() {
               <li><button onClick={() => handleTabChange('jobs')} className="hover:text-white transition">Lowongan Kerja (Loker)</button></li>
               <li><button onClick={() => handleTabChange('umkm')} className="hover:text-white transition">Direktori Lapak UMKM</button></li>
               <li><button onClick={() => handleTabChange('reports')} className="hover:text-white transition">Laporan Aduan Warga</button></li>
+              <li><button onClick={() => handleTabChange('admin')} className="text-emerald-400 hover:text-emerald-300 font-bold transition flex items-center gap-1">🔒 Kelola Portal (Admin)</button></li>
             </ul>
           </div>
 

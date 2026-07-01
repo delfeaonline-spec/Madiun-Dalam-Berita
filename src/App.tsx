@@ -28,7 +28,8 @@ import {
   ThumbsDown,
   AlertCircle,
   ShieldCheck,
-  RefreshCw
+  RefreshCw,
+  Scale
 } from 'lucide-react';
 
 import { NewsItem, JobItem, UMKMItem, CitizenReport } from './types';
@@ -313,7 +314,7 @@ export default function App() {
     let active = true;
 
     // Helper to parse XML feed in case rss2json fails
-    const parseXmlFeed = (xmlText: string, category: 'RSS Antara' | 'RSS Detik', feedUrl: string, imageBg: string) => {
+    const parseXmlFeed = (xmlText: string, category: NewsItem['category'], feedUrl: string, imageBg: string) => {
       try {
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlText, "text/xml");
@@ -357,8 +358,15 @@ export default function App() {
             .replace(/&amp;/g, '&')
             .trim();
 
+          // Map author nicely based on feed category
+          let author = 'Madiun Berita';
+          if (category === 'RSS Detik') author = 'Detik Madiun';
+          else if (category === 'RSS Antara') author = 'Radar Madiun';
+          else if (category === 'RSS Pemkab') author = 'Pemkab Madiun';
+          else if (category === 'RSS Pemkot') author = 'Pemkot Madiun';
+
           parsedItems.push({
-            id: Date.now() + i + Math.floor(Math.random() * 1000) + (category === 'RSS Detik' ? 10000 : 20000),
+            id: Date.now() + i + Math.floor(Math.random() * 1000) + (category === 'RSS Detik' ? 10000 : category === 'RSS Antara' ? 20000 : category === 'RSS Pemkab' ? 30000 : 40000),
             title: title,
             category: category,
             date: pubDateStr ? new Date(pubDateStr).toLocaleDateString('id-ID', {
@@ -371,7 +379,7 @@ export default function App() {
             readTime: '3 Menit Baca',
             summary: cleanDesc,
             content: content || cleanDesc,
-            author: category === 'RSS Detik' ? 'Detik Jatim' : 'Antara Jatim',
+            author: author,
             imageBg: imageBg,
             link: link,
             thumbnail: thumbnail
@@ -393,16 +401,28 @@ export default function App() {
 
         const feeds = [
           {
-            name: 'ANTARA News Jatim (Madiun Raya)',
+            name: 'Radar Madiun (Jawa Pos)',
             category: 'RSS Antara' as const,
-            url: 'https://jatim.antaranews.com/rss/jatim.xml',
+            url: 'https://radarmadiun.jawapos.com/feed',
             imageBg: 'from-blue-600 to-indigo-950'
           },
           {
-            name: 'Detikcom Jatim',
+            name: 'Detikcom Tag Madiun',
             category: 'RSS Detik' as const,
-            url: 'https://www.detik.com/jatim/rss',
+            url: 'https://www.detik.com/tag/madiun',
             imageBg: 'from-amber-600 to-amber-950'
+          },
+          {
+            name: 'Pemkab Madiun',
+            category: 'RSS Pemkab' as const,
+            url: 'https://madiunkab.go.id/berita/',
+            imageBg: 'from-emerald-600 to-emerald-950'
+          },
+          {
+            name: 'Pemkot Madiun',
+            category: 'RSS Pemkot' as const,
+            url: 'https://www.madiunkota.go.id/berita/terkini/',
+            imageBg: 'from-indigo-600 to-blue-950'
           }
         ];
 
@@ -413,14 +433,20 @@ export default function App() {
           let feedItems: NewsItem[] = [];
           let fetchedSuccessfully = false;
 
-          // Attempt 1: rss2json proxy (Fastest JSON parsing)
+          // Fetch via local server-side API proxy (bypasses CORS & adblockers seamlessly)
           try {
-            const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}`;
-            const response = await fetch(proxyUrl);
-            
+            const response = await fetch(`/api/rss?url=${encodeURIComponent(feed.url)}`);
             if (response.ok) {
               const data = await response.json();
-              if (data.status === 'ok' && Array.isArray(data.items)) {
+              
+              if (data.status === 'xml' && data.xml) {
+                // Parse returned raw XML server-side output on client
+                feedItems = parseXmlFeed(data.xml, feed.category, feed.url, feed.imageBg);
+                if (feedItems.length > 0) {
+                  fetchedSuccessfully = true;
+                }
+              } else if (data.items && Array.isArray(data.items)) {
+                // Parse returned rss2json pre-parsed format
                 feedItems = data.items.map((item: any, idx: number) => {
                   let thumbnail = '';
                   if (item.thumbnail) {
@@ -444,8 +470,14 @@ export default function App() {
                     .replace(/&amp;/g, '&')
                     .trim();
 
+                  let mappedAuthor = 'Madiun Berita';
+                  if (feed.category === 'RSS Detik') mappedAuthor = 'Detik Madiun';
+                  else if (feed.category === 'RSS Antara') mappedAuthor = 'Radar Madiun';
+                  else if (feed.category === 'RSS Pemkab') mappedAuthor = 'Pemkab Madiun';
+                  else if (feed.category === 'RSS Pemkot') mappedAuthor = 'Pemkot Madiun';
+
                   return {
-                    id: Date.now() + idx + Math.floor(Math.random() * 1000) + (feed.category === 'RSS Detik' ? 10000 : 20000),
+                    id: Date.now() + idx + Math.floor(Math.random() * 1000) + (feed.category === 'RSS Detik' ? 10000 : feed.category === 'RSS Antara' ? 20000 : feed.category === 'RSS Pemkab' ? 30000 : 40000),
                     title: item.title || 'Berita Jatim Terkini',
                     category: feed.category,
                     date: item.pubDate ? new Date(item.pubDate).toLocaleDateString('id-ID', {
@@ -458,7 +490,7 @@ export default function App() {
                     readTime: '3 Menit Baca',
                     summary: cleanDesc,
                     content: item.content || cleanDesc,
-                    author: item.author || (feed.category === 'RSS Detik' ? 'Detik Jatim' : 'Antara Jatim'),
+                    author: item.author || mappedAuthor,
                     imageBg: feed.imageBg,
                     link: item.link || feed.url,
                     thumbnail: thumbnail
@@ -468,32 +500,13 @@ export default function App() {
               }
             }
           } catch (e) {
-            console.warn(`Attempt 1 (rss2json) failed for ${feed.name}, trying fallback...`, e);
-          }
-
-          // Attempt 2: Fallback to AllOrigins XML Proxy (Extremely stable fallback)
-          if (!fetchedSuccessfully) {
-            try {
-              const fallbackUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(feed.url)}`;
-              const response = await fetch(fallbackUrl);
-              if (response.ok) {
-                const data = await response.json();
-                if (data && data.contents) {
-                  feedItems = parseXmlFeed(data.contents, feed.category, feed.url, feed.imageBg);
-                  if (feedItems.length > 0) {
-                    fetchedSuccessfully = true;
-                  }
-                }
-              }
-            } catch (e) {
-              console.error(`Attempt 2 (AllOrigins) also failed for ${feed.name}:`, e);
-            }
+            console.error(`Failed to fetch RSS feed via server proxy for ${feed.name}:`, e);
           }
 
           if (fetchedSuccessfully && feedItems.length > 0) {
-            // Apply filtering for Detik Jatim if required
+            // Apply filtering only for fallback Detik Jatim RSS feed if needed
             let filteredFeedItems = feedItems;
-            if (feed.category === 'RSS Detik') {
+            if (feed.category === 'RSS Detik' && !feed.url.includes('tag/')) {
               const keywords = ["madiun", "caruban", "mejayan", "sogaten"];
               filteredFeedItems = feedItems.filter((item: NewsItem) => {
                 const titleLower = item.title.toLowerCase();
@@ -544,6 +557,7 @@ export default function App() {
   const [isLokerModalOpen, setIsLokerModalOpen] = useState(false);
   const [isUMKMModalOpen, setIsUMKMModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isDisclaimerOpen, setIsDisclaimerOpen] = useState(false);
 
   // New item draft states
   const [newReport, setNewReport] = useState({
@@ -807,8 +821,10 @@ export default function App() {
     const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           item.summary.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = newsFilter === 'Semua' || 
-                            (newsFilter === 'Antara Jatim' && item.category === 'RSS Antara') ||
-                            (newsFilter === 'Detik Jatim' && item.category === 'RSS Detik');
+                            (newsFilter === 'Radar Madiun' && item.category === 'RSS Antara') ||
+                            (newsFilter === 'Detik Madiun' && item.category === 'RSS Detik') ||
+                            (newsFilter === 'Pemkab Madiun' && item.category === 'RSS Pemkab') ||
+                            (newsFilter === 'Pemkot Madiun' && item.category === 'RSS Pemkot');
     return matchesSearch && matchesCategory;
   });
 
@@ -1135,7 +1151,7 @@ export default function App() {
                   </button>
                 ))
               ) : (
-                ['Semua', 'Antara Jatim', 'Detik Jatim'].map((cat) => (
+                ['Semua', 'Radar Madiun', 'Detik Madiun', 'Pemkab Madiun', 'Pemkot Madiun'].map((cat) => (
                   <button
                     key={cat}
                     onClick={() => setNewsFilter(cat)}
@@ -1311,7 +1327,7 @@ export default function App() {
                         <div className="absolute inset-0 opacity-15 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:14px_24px]"></div>
                         <div className="relative z-10">
                           <span className="bg-amber-500 text-white font-extrabold text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-md">
-                            {filteredRssNews[0].category === 'RSS Antara' ? 'ANTARA Jatim' : 'Detikcom Jatim'}
+                            {filteredRssNews[0].author}
                           </span>
                           <a 
                             href={filteredRssNews[0].link} 
@@ -1359,7 +1375,7 @@ export default function App() {
                   {/* Sidebar/Smaller News List */}
                   <div className="space-y-6 flex flex-col lg:col-span-1" id="sub-rss-list">
                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider pb-2 border-b border-slate-100 flex items-center justify-between">
-                      <span>Berita Lainnya Jatim</span>
+                      <span>Berita Lainnya Madiun</span>
                       <button 
                         onClick={() => setRssTrigger(prev => prev + 1)}
                         className="text-emerald-600 hover:text-emerald-700 font-extrabold flex items-center text-[10px]"
@@ -1388,7 +1404,7 @@ export default function App() {
                           <div>
                             <div className="flex items-center justify-between mb-2">
                               <span className="bg-emerald-50 text-emerald-800 font-bold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded">
-                                {news.category === 'RSS Antara' ? 'ANTARA Jatim' : 'Detikcom Jatim'}
+                                {news.author}
                               </span>
                               <span className="text-[10px] text-slate-400 font-semibold">{news.date}</span>
                             </div>
@@ -1914,7 +1930,7 @@ export default function App() {
             <p className="text-xs leading-relaxed max-w-sm">
               Media kolaborasi warga digital Madiun Raya. Wadah penyampaian informasi terkini, pemberdayaan ekonomi mikro melalui UMKM, penyerapan tenaga kerja, dan perbaikan pelayanan publik lewat aduan kejadian.
             </p>
-            <p className="text-[10px] text-slate-500">© 2026 Portal Berita Madiun - Dikembangkan secara responsif untuk kesejahteraan bersama.</p>
+            <p className="text-[10px] text-slate-500">© 2026 Portal Berita Madiun - Dikembangkan secara responsif untuk kesejahteraan bersama. <button onClick={() => setIsDisclaimerOpen(true)} className="text-emerald-500 hover:underline ml-1 font-bold">Disclaimer & Hak Cipta</button></p>
           </div>
 
           <div>
@@ -1925,6 +1941,7 @@ export default function App() {
               <li><button onClick={() => handleTabChange('umkm')} className="hover:text-white transition">Direktori Lapak UMKM</button></li>
               <li><button onClick={() => handleTabChange('reports')} className="hover:text-white transition">Laporan Aduan Warga</button></li>
               <li><button onClick={() => handleTabChange('admin')} className="text-emerald-400 hover:text-emerald-300 font-bold transition flex items-center gap-1">🔒 Kelola Portal (Admin)</button></li>
+              <li><button onClick={() => setIsDisclaimerOpen(true)} className="text-amber-400 hover:text-amber-300 font-bold transition flex items-center gap-1">⚖️ Disclaimer & Hak Cipta</button></li>
             </ul>
           </div>
 
@@ -2437,6 +2454,100 @@ export default function App() {
                     </button>
                   </div>
                 </form>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 6: DISCLAIMER & PENAFIAN HAK CIPTA */}
+      {isDisclaimerOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true" id="disclaimer-copyright-modal">
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsDisclaimerOpen(false)}></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            
+            <div className="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full animate-fade-in border border-slate-100">
+              <div className="p-6 sm:p-8">
+                
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
+                  <div className="flex items-center space-x-3">
+                    <div className="h-10 w-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                      <Scale className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-lg text-slate-900 font-serif">Disclaimer & Penafian Hak Cipta</h3>
+                      <p className="text-xs text-slate-500">Ketentuan & Kebijakan Konten beritamadiun.my.id</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setIsDisclaimerOpen(false)}
+                    className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition duration-150"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                {/* Content */}
+                <div className="space-y-6 text-sm text-slate-600 leading-relaxed max-h-[60vh] overflow-y-auto pr-2">
+                  <p className="font-medium text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    Halaman ini mengatur penggunaan konten pada website <span className="font-bold text-emerald-700">beritamadiun.my.id</span>. Harap dipahami secara seksama oleh seluruh pengunjung dan pihak terkait.
+                  </p>
+
+                  <div className="space-y-4">
+                    <div className="flex gap-3">
+                      <span className="h-6 w-6 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
+                      <div>
+                        <h4 className="font-bold text-slate-950 mb-1">Sumber Konten & Agregasi</h4>
+                        <p className="text-xs text-slate-600">
+                          Website ini berfungsi sebagai media agregator informasi yang mengumpulkan berita, lowongan kerja, info jual beli, dan peristiwa seputar Kota dan Kabupaten Madiun. Konten dihimpun secara otomatis maupun manual dari berbagai sumber publik, termasuk media sosial (Facebook, Instagram, YouTube, TikTok) dan media massa online.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <span className="h-6 w-6 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
+                      <div>
+                        <h4 className="font-bold text-slate-950 mb-1">Hak Cipta Konten</h4>
+                        <p className="text-xs text-slate-600">
+                          <span className="font-semibold text-slate-800">beritamadiun.my.id</span> sama sekali tidak mengklaim kepemilikan atas artikel, teks, foto, atau video yang disajikan melalui sistem agregator. Hak cipta sepenuhnya milik penulis, fotografer, dan media sumber asli. Kami selalu menyertakan kredit nama sumber dan tautan langsung (backlink) menuju konten asli.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <span className="h-6 w-6 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
+                      <div>
+                        <h4 className="font-bold text-slate-950 mb-1">Klarifikasi & Penghapusan Konten</h4>
+                        <p className="text-xs text-slate-600">
+                          Jika Anda adalah pemilik sah dari konten yang kami muat dan keberatan konten tersebut ditampilkan di sini, silakan hubungi kami melalui halaman Kontak atau aduan. Kami akan merespons dan menurunkan konten tersebut dalam waktu maksimal <span className="font-semibold text-rose-600">1x24 jam</span> setelah laporan diterima.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <span className="h-6 w-6 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">4</span>
+                      <div>
+                        <h4 className="font-bold text-slate-950 mb-1">Validitas Informasi & Keamanan Pengguna</h4>
+                        <p className="text-xs text-slate-600">
+                          Informasi seperti lowongan pekerjaan dan info jual beli diambil dari kiriman publik. Kami mengimbau warga Madiun untuk tetap waspada terhadap penipuan. Kami tidak bertanggung jawab atas kerugian materiil atau imateriil yang terjadi akibat transaksi eksternal tersebut. Selalu lakukan verifikasi mandiri sebelum bertransaksi.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer / Buttons */}
+                <div className="flex gap-3 pt-6 border-t border-slate-100 mt-6">
+                  <button
+                    onClick={() => setIsDisclaimerOpen(false)}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-xs transition duration-150 shadow-md shadow-emerald-600/10 text-center"
+                  >
+                    Saya Mengerti & Setuju
+                  </button>
+                </div>
 
               </div>
             </div>

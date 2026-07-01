@@ -1,7 +1,7 @@
 export interface NewsItem {
   id: number;
   title: string;
-  category: 'Pembangunan' | 'Kuliner' | 'Budaya' | 'Ekonomi' | 'Pendidikan' | 'RSS Antara' | 'RSS Detik';
+  category: 'Pembangunan' | 'Kuliner' | 'Budaya' | 'Ekonomi' | 'Pendidikan' | 'RSS Antara' | 'RSS Detik' | 'RSS Pemkab' | 'RSS Pemkot';
   date: string;
   readTime: string;
   summary: string;

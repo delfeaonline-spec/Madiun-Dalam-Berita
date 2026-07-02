@@ -13,7 +13,7 @@ export interface NewsItem {
 }
 
 export interface JobItem {
-  id: number;
+  id: number | string;
   title: string;
   company: string;
   location: string;
@@ -35,6 +35,8 @@ export interface UMKMItem {
   seller: string;
   rating: number;
   imageBg: string;
+  imageUrl?: string;
+  address?: string;
 }
 
 export interface CitizenReport {
@@ -48,6 +50,8 @@ export interface CitizenReport {
   comments: { id: number; author: string; text: string; time: string }[];
   description: string;
   isUpvoted?: boolean;
+  imageUrl?: string;
+  location?: string;
 }
 
 export interface RssRotationSource {
@@ -60,4 +64,29 @@ export interface RssRotationSource {
   badgeColor: string;
   borderColor: string;
 }
+
+export interface ViralInfoItem {
+  id: number;
+  platform: 'youtube' | 'facebook' | 'instagram' | 'tiktok';
+  title: string;
+  sourceUrl: string;
+  author: string;
+  date: string;
+  likes: string;
+  views?: string;
+  description: string;
+  imageUrl?: string;
+  location: 'Kabupaten Madiun' | 'Kota Madiun';
+}
+
+export interface ComplaintChannel {
+  id: number;
+  name: string;
+  targetRegion: 'Kota Madiun' | 'Kabupaten Madiun' | 'Seluruh Madiun';
+  type: 'whatsapp' | 'sms' | 'website' | 'phone' | 'app';
+  contactValue: string;
+  description: string;
+  actionUrl?: string;
+}
+
 

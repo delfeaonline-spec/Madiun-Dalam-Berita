@@ -211,7 +211,7 @@ interface CacheEntry {
 }
 
 const rssCache: { [url: string]: CacheEntry } = {};
-const CACHE_TTL = 10 * 60 * 1000; // 10 menit cache
+const CACHE_TTL = 60 * 60 * 1000; // 1 Jam cache untuk performa maksimal dan instan di semua PC
 
 async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = 4000): Promise<Response> {
   const controller = new AbortController();
@@ -576,7 +576,7 @@ async function startServer() {
     try {
       // Attempt 1: Fetch via rss2json from server side
       const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(targetUrl)}`;
-      const response = await fetchWithTimeout(proxyUrl, {}, 3000);
+      const response = await fetchWithTimeout(proxyUrl, {}, 2000);
       if (response.ok) {
         const data = await response.json();
         if (data.status === 'ok') {
@@ -598,7 +598,7 @@ async function startServer() {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept": "text/xml, application/xml, application/rss+xml, text/html"
           }
-        }, 3000);
+        }, 2000);
         if (response.ok) {
           const xmlText = await response.text();
           if (xmlText && isValidRssXml(xmlText)) {
@@ -618,7 +618,7 @@ async function startServer() {
       // Attempt 3: Fetch via corsproxy.io
       try {
         const corsProxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-        const response = await fetchWithTimeout(corsProxyUrl, {}, 3000);
+        const response = await fetchWithTimeout(corsProxyUrl, {}, 1500);
         if (response.ok) {
           const xmlText = await response.text();
           if (xmlText && isValidRssXml(xmlText)) {
@@ -633,46 +633,6 @@ async function startServer() {
         }
       } catch (corsProxyError: any) {
         console.log(`[Server API] Info: corsproxy not available for ${targetUrl}`);
-      }
-
-      // Attempt 4: Fetch via api.allorigins.win
-      try {
-        const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-        const response = await fetchWithTimeout(allOriginsUrl, {}, 3000);
-        if (response.ok) {
-          const data = await response.json();
-          if (data && data.contents && isValidRssXml(data.contents)) {
-            console.log(`[Server API] AllOrigins proxy fetch succeeded for ${targetUrl}`);
-            const resBody = { status: 'xml', xml: data.contents };
-            rssCache[targetUrl] = {
-              data: resBody,
-              timestamp: Date.now()
-            };
-            return res.json(resBody);
-          }
-        }
-      } catch (allOriginsError: any) {
-        console.log(`[Server API] Info: AllOrigins proxy not available for ${targetUrl}`);
-      }
-
-      // Attempt 5: Fetch via api.codetabs.com
-      try {
-        const codetabsUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
-        const response = await fetchWithTimeout(codetabsUrl, {}, 3000);
-        if (response.ok) {
-          const xmlText = await response.text();
-          if (xmlText && isValidRssXml(xmlText)) {
-            console.log(`[Server API] codetabs.com proxy fetch succeeded for ${targetUrl}`);
-            const resBody = { status: 'xml', xml: xmlText };
-            rssCache[targetUrl] = {
-              data: resBody,
-              timestamp: Date.now()
-            };
-            return res.json(resBody);
-          }
-        }
-      } catch (codetabsError: any) {
-        console.log(`[Server API] Info: codetabs proxy not available for ${targetUrl}`);
       }
 
       // If everything failed, try to serve high-quality cached fallback articles for the target site

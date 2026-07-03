@@ -1,108 +1,23 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Default deny catch-all
-    match /{document=**} {
-      allow read, write: if false;
+    match /news/{id} {
+      allow read, write: if true;
     }
-
-    // Common Helpers
-    function incoming() {
-      return request.resource.data;
+    match /jobs/{id} {
+      allow read, write: if true;
     }
-
-    function existing() {
-      return resource.data;
+    match /umkm/{id} {
+      allow read, write: if true;
     }
-
-    // Validation functions
-    function isValidId(id) {
-      return id is string && id.size() <= 128;
+    match /reports/{id} {
+      allow read, write: if true;
     }
-
-    function isValidNews(data) {
-      return data.id is string
-        && data.title is string && data.title.size() <= 200
-        && data.category is string
-        && data.date is string
-        && data.summary is string
-        && data.content is string
-        && data.author is string;
+    match /viralFeed/{id} {
+      allow read, write: if true;
     }
-
-    function isValidJob(data) {
-      return data.id is string
-        && data.title is string && data.title.size() <= 200
-        && data.company is string
-        && data.location is string
-        && data.type is string;
-    }
-
-    function isValidUMKM(data) {
-      return data.id is string
-        && data.name is string && data.name.size() <= 200
-        && data.price is number
-        && data.category is string
-        && data.seller is string;
-    }
-
-    function isValidReport(data) {
-      return data.id is string
-        && data.title is string && data.title.size() <= 200
-        && data.reporter is string
-        && data.category is string
-        && data.urgency is string;
-    }
-
-    function isValidViral(data) {
-      return data.id is string
-        && data.title is string && data.title.size() <= 200
-        && data.platform is string
-        && data.sourceUrl is string;
-    }
-
-    function isValidSettings(data) {
-      return data.tickerText is string
-        && data.cctvUrl is string
-        && data.portalBgUrl is string;
-    }
-
-    // Collections matches
-    match /news/{newsId} {
-      allow read: if true;
-      allow create, update: if isValidId(newsId) && isValidNews(incoming());
-      allow delete: if true;
-    }
-
-    match /jobs/{jobId} {
-      allow read: if true;
-      allow create, update: if isValidId(jobId) && isValidJob(incoming());
-      allow delete: if true;
-    }
-
-    match /umkm/{umkmId} {
-      allow read: if true;
-      allow create, update: if isValidId(umkmId) && isValidUMKM(incoming());
-      allow delete: if true;
-    }
-
-    match /reports/{reportId} {
-      allow read: if true;
-      allow create, update: if isValidId(reportId) && isValidReport(incoming());
-      allow delete: if true;
-    }
-
-    match /viralFeed/{viralId} {
-      allow read: if true;
-      allow create, update: if isValidId(viralId) && isValidViral(incoming());
-      allow delete: if true;
-    }
-
-    match /settings/{settingId} {
-      allow read: if true;
-      allow create, update: if isValidId(settingId) && isValidSettings(incoming());
-      allow delete: if true;
+    match /settings/{id} {
+      allow read, write: if true;
     }
   }
 }

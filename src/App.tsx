@@ -521,6 +521,101 @@ export default function App() {
   // Track whether we have successfully synchronized from the Firebase Firestore database
   const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
 
+  // Wrap state updates with auto-saving to local storage and selective Firebase syncing on active mutation
+  const updateNewsList = (updater: NewsItem[] | ((prev: NewsItem[]) => NewsItem[])) => {
+    setNewsList(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      localStorage.setItem('bm_news', JSON.stringify(next));
+      if (hasLoadedFromServer) {
+        syncListToCollection<NewsItem>('news', next);
+      }
+      return next;
+    });
+  };
+
+  const updateJobsList = (updater: JobItem[] | ((prev: JobItem[]) => JobItem[])) => {
+    setJobsList(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      localStorage.setItem('bm_jobs', JSON.stringify(next));
+      if (hasLoadedFromServer) {
+        syncListToCollection<JobItem>('jobs', next);
+      }
+      return next;
+    });
+  };
+
+  const updateUmkmList = (updater: UMKMItem[] | ((prev: UMKMItem[]) => UMKMItem[])) => {
+    setUmkmList(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      localStorage.setItem('bm_umkm', JSON.stringify(next));
+      if (hasLoadedFromServer) {
+        syncListToCollection<UMKMItem>('umkm', next);
+      }
+      return next;
+    });
+  };
+
+  const updateReportsList = (updater: CitizenReport[] | ((prev: CitizenReport[]) => CitizenReport[])) => {
+    setReportsList(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      localStorage.setItem('bm_reports', JSON.stringify(next));
+      if (hasLoadedFromServer) {
+        syncListToCollection<CitizenReport>('reports', next);
+      }
+      return next;
+    });
+  };
+
+  const updateViralFeed = (updater: ViralInfoItem[] | ((prev: ViralInfoItem[]) => ViralInfoItem[])) => {
+    setViralFeed(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      localStorage.setItem('bm_viral_feed', JSON.stringify(next));
+      if (hasLoadedFromServer) {
+        syncListToCollection<ViralInfoItem>('viralFeed', next);
+      }
+      return next;
+    });
+  };
+
+  const updateTickerText = (text: string) => {
+    setTickerText(text);
+    localStorage.setItem('bm_ticker_text', text);
+    if (hasLoadedFromServer) {
+      saveDocument('settings', 'portal', {
+        id: 'portal',
+        tickerText: text,
+        cctvUrl,
+        portalBgUrl
+      });
+    }
+  };
+
+  const updateCctvUrl = (url: string) => {
+    setCctvUrl(url);
+    localStorage.setItem('bm_cctv_url', url);
+    if (hasLoadedFromServer) {
+      saveDocument('settings', 'portal', {
+        id: 'portal',
+        tickerText,
+        cctvUrl: url,
+        portalBgUrl
+      });
+    }
+  };
+
+  const updatePortalBgUrl = (url: string) => {
+    setPortalBgUrl(url);
+    localStorage.setItem('bm_portal_bg_url', url);
+    if (hasLoadedFromServer) {
+      saveDocument('settings', 'portal', {
+        id: 'portal',
+        tickerText,
+        cctvUrl,
+        portalBgUrl: url
+      });
+    }
+  };
+
   // 1. Fetch synchronized database from Cloud Firestore on mount
   useEffect(() => {
     const fetchSyncData = async () => {
@@ -608,48 +703,6 @@ export default function App() {
     };
     fetchSyncData();
   }, []);
-
-  // 2. Automatically save state modifications to Cloud Firestore database (synchronized across all devices in real-time)
-  useEffect(() => {
-    if (!hasLoadedFromServer) return;
-
-    // Save to localStorage as a fast local fallback/cache
-    localStorage.setItem('bm_news', JSON.stringify(newsList));
-    localStorage.setItem('bm_jobs', JSON.stringify(jobsList));
-    localStorage.setItem('bm_umkm', JSON.stringify(umkmList));
-    localStorage.setItem('bm_reports', JSON.stringify(reportsList));
-    localStorage.setItem('bm_viral_feed', JSON.stringify(viralFeed));
-    localStorage.setItem('bm_ticker_text', tickerText);
-    localStorage.setItem('bm_cctv_url', cctvUrl);
-    localStorage.setItem('bm_portal_bg_url', portalBgUrl);
-
-    // Synchronize to the cloud Firestore database
-    const syncToCloud = async () => {
-      try {
-        await syncListToCollection<NewsItem>('news', newsList);
-        await syncListToCollection<JobItem>('jobs', jobsList);
-        await syncListToCollection<UMKMItem>('umkm', umkmList);
-        await syncListToCollection<CitizenReport>('reports', reportsList);
-        await syncListToCollection<ViralInfoItem>('viralFeed', viralFeed);
-        
-        await saveDocument('settings', 'portal', {
-          id: 'portal',
-          tickerText,
-          cctvUrl,
-          portalBgUrl
-        });
-      } catch (err) {
-        console.error("[Sync DB] Failed to save synchronized database to Cloud Firestore:", err);
-      }
-    };
-
-    // Debounce saves by 1200ms to avoid overloading the network during active updates
-    const timer = setTimeout(() => {
-      syncToCloud();
-    }, 1200);
-
-    return () => clearTimeout(timer);
-  }, [newsList, jobsList, umkmList, reportsList, viralFeed, tickerText, cctvUrl, portalBgUrl, hasLoadedFromServer]);
 
   // General Filter / Search States
   const [searchQuery, setSearchQuery] = useState('');
@@ -1593,7 +1646,7 @@ export default function App() {
 
   // Citizen report interactions
   const handleUpvote = (id: number) => {
-    setReportsList(prev => prev.map(report => {
+    updateReportsList(prev => prev.map(report => {
       if (report.id === id) {
         const isUpvoted = !report.isUpvoted;
         return {
@@ -1611,7 +1664,7 @@ export default function App() {
     const text = commentInputs[reportId]?.trim();
     if (!text) return;
 
-    setReportsList(prev => prev.map(report => {
+    updateReportsList(prev => prev.map(report => {
       if (report.id === reportId) {
         return {
           ...report,
@@ -1656,7 +1709,7 @@ export default function App() {
       imageUrl: newReport.imageUrl || ''
     };
 
-    setReportsList(prev => [report, ...prev]);
+    updateReportsList(prev => [report, ...prev]);
     setIsReportModalOpen(false);
     setNewReport({
       title: '',
@@ -1701,7 +1754,7 @@ export default function App() {
       imageUrl: newUMKM.imageUrl || ''
     };
 
-    setUmkmList(prev => [umkm, ...prev]);
+    updateUmkmList(prev => [umkm, ...prev]);
     setIsUMKMModalOpen(false);
     setNewUMKM({
       name: '',
@@ -3587,19 +3640,19 @@ export default function App() {
         {activeTab === 'admin' && (
           <AdminPanel
             newsList={newsList}
-            setNewsList={setNewsList}
+            setNewsList={updateNewsList}
             jobsList={jobsList}
-            setJobsList={setJobsList}
+            setJobsList={updateJobsList}
             umkmList={umkmList}
-            setUmkmList={setUmkmList}
+            setUmkmList={updateUmkmList}
             reportsList={reportsList}
-            setReportsList={setReportsList}
+            setReportsList={updateReportsList}
             tickerText={tickerText}
-            setTickerText={setTickerText}
+            setTickerText={updateTickerText}
             rssSources={rssSources}
             setRssSources={setRssSources}
             viralFeed={viralFeed}
-            setViralFeed={setViralFeed}
+            setViralFeed={updateViralFeed}
             complaintChannels={complaintChannels}
             setComplaintChannels={setComplaintChannels}
             triggerToast={triggerToast}
@@ -3607,9 +3660,9 @@ export default function App() {
             setWeatherData={setWeatherData}
             autoGenerateTickerText={() => autoGenerateTickerText(viralFeed, newsList, rssNewsList, reportsList, weatherData)}
             portalBgUrl={portalBgUrl}
-            setPortalBgUrl={setPortalBgUrl}
+            setPortalBgUrl={updatePortalBgUrl}
             cctvUrl={cctvUrl}
-            setCctvUrl={setCctvUrl}
+            setCctvUrl={updateCctvUrl}
           />
         )}
 

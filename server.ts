@@ -8,14 +8,19 @@ import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, writeBatch, 
 // Initialize Firebase server-side connection using the same config
 let db: any = null;
 try {
-  const firebaseConfigPath = path.join(process.cwd(), 'firebase-applet-config.json');
+  let firebaseConfigPath = path.join(process.cwd(), 'firebase-applet-config.json');
+  if (!fs.existsSync(firebaseConfigPath)) {
+    // Try checking parent directory (common for nested serverless functions like Vercel)
+    firebaseConfigPath = path.join(__dirname, '..', 'firebase-applet-config.json');
+  }
+  
   if (fs.existsSync(firebaseConfigPath)) {
     const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, 'utf-8'));
     const firebaseApp = initializeApp(firebaseConfig);
     db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
     console.log("[Server Firebase] Successfully initialized server-side Firebase Firestore.");
   } else {
-    console.error("[Server Firebase] Warning: firebase-applet-config.json not found.");
+    console.error("[Server Firebase] Warning: firebase-applet-config.json not found at standard paths.");
   }
 } catch (firebaseErr) {
   console.error("[Server Firebase] Error initializing server-side Firebase:", firebaseErr);
@@ -710,12 +715,13 @@ function performBackgroundRssFetch(targetUrl: string, feedUrl: string) {
   }, 50);
 }
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+const app = express();
+const PORT = 3000;
 
-  // Enable JSON request bodies
-  app.use(express.json());
+// Enable JSON request bodies
+app.use(express.json());
+
+async function startServer() {
 
   // ==========================================
   // SERVER-SIDE FIRESTORE PROXY ENDPOINTS
@@ -943,9 +949,13 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
-  });
+  if (!process.env.VERCEL) {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://0.0.0.0:${PORT}`);
+    });
+  }
 }
 
 startServer();
+
+export default app;

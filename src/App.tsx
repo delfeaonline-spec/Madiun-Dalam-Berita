@@ -42,6 +42,7 @@ import {
 import { NewsItem, JobItem, UMKMItem, CitizenReport, RssRotationSource, ViralInfoItem, ComplaintChannel, MadiunWeather } from './types';
 import AdminPanel from './components/AdminPanel';
 import MapModal from './components/MapModal';
+import { fetchCollectionData, saveDocument, syncListToCollection } from './lib/firebase';
 
 // ==========================================
 // INITIAL MOCK DATA
@@ -517,27 +518,88 @@ export default function App() {
     return saved ? JSON.parse(saved) : INITIAL_VIRAL_FEED;
   });
 
-  // Track whether we have successfully synchronized from the backend database (db.json)
+  // Track whether we have successfully synchronized from the Firebase Firestore database
   const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
 
-  // 1. Fetch synchronized database from server on mount
+  // 1. Fetch synchronized database from Cloud Firestore on mount
   useEffect(() => {
     const fetchSyncData = async () => {
       try {
-        const res = await fetch('/api/data');
-        if (res.ok) {
-          const syncData = await res.json();
-          if (syncData) {
-            if (syncData.news) setNewsList(syncData.news);
-            if (syncData.jobs) setJobsList(syncData.jobs);
-            if (syncData.umkm) setUmkmList(syncData.umkm);
-            if (syncData.reports) setReportsList(syncData.reports);
-            if (syncData.viralFeed) setViralFeed(syncData.viralFeed);
-            if (syncData.tickerText) setTickerText(syncData.tickerText);
-            if (syncData.cctvUrl) setCctvUrl(syncData.cctvUrl);
-            if (syncData.portalBgUrl) setPortalBgUrl(syncData.portalBgUrl);
+        console.log("[Firebase] Loading live data from Firestore...");
+
+        // Fetch and Seed News
+        let news = await fetchCollectionData<NewsItem>('news');
+        if (news.length === 0) {
+          console.log("[Firebase] Database empty. Seeding initial news...");
+          for (const item of INITIAL_NEWS) {
+            await saveDocument('news', item.id.toString(), item);
           }
+          news = INITIAL_NEWS;
         }
+        setNewsList(news);
+
+        // Fetch and Seed Jobs
+        let jobs = await fetchCollectionData<JobItem>('jobs');
+        if (jobs.length === 0) {
+          console.log("[Firebase] Database empty. Seeding initial jobs...");
+          for (const item of INITIAL_JOBS) {
+            await saveDocument('jobs', item.id.toString(), item);
+          }
+          jobs = INITIAL_JOBS;
+        }
+        setJobsList(jobs);
+
+        // Fetch and Seed UMKM
+        let umkm = await fetchCollectionData<UMKMItem>('umkm');
+        if (umkm.length === 0) {
+          console.log("[Firebase] Database empty. Seeding initial umkm...");
+          for (const item of INITIAL_UMKM) {
+            await saveDocument('umkm', item.id.toString(), item);
+          }
+          umkm = INITIAL_UMKM;
+        }
+        setUmkmList(umkm);
+
+        // Fetch and Seed Reports
+        let reports = await fetchCollectionData<CitizenReport>('reports');
+        if (reports.length === 0) {
+          console.log("[Firebase] Database empty. Seeding initial reports...");
+          for (const item of INITIAL_REPORTS) {
+            await saveDocument('reports', item.id.toString(), item);
+          }
+          reports = INITIAL_REPORTS;
+        }
+        setReportsList(reports);
+
+        // Fetch and Seed Viral
+        let viral = await fetchCollectionData<ViralInfoItem>('viralFeed');
+        if (viral.length === 0) {
+          console.log("[Firebase] Database empty. Seeding initial viral items...");
+          for (const item of INITIAL_VIRAL_FEED) {
+            await saveDocument('viralFeed', item.id.toString(), item);
+          }
+          viral = INITIAL_VIRAL_FEED;
+        }
+        setViralFeed(viral);
+
+        // Fetch and Seed Settings
+        const settings = await fetchCollectionData<any>('settings');
+        let portalSettings = settings.find(s => s.id === 'portal');
+        if (!portalSettings) {
+          console.log("[Firebase] Database empty. Seeding initial portal settings...");
+          const defaultSettings = {
+            id: 'portal',
+            tickerText: 'Menghubungkan satelit cuaca BMKG dan info hit viral Madiun Raya...',
+            cctvUrl: 'https://cctv.villabs.id/cctv/',
+            portalBgUrl: '/src/assets/images/portal_bg_1783079800952.jpg'
+          };
+          await saveDocument('settings', 'portal', defaultSettings);
+          portalSettings = defaultSettings;
+        }
+        setTickerText(portalSettings.tickerText);
+        setCctvUrl(portalSettings.cctvUrl);
+        setPortalBgUrl(portalSettings.portalBgUrl);
+
       } catch (err) {
         console.error("[Sync DB] Failed to load synchronized database from server:", err);
       } finally {
@@ -547,7 +609,7 @@ export default function App() {
     fetchSyncData();
   }, []);
 
-  // 2. Automatically save state modifications to server-side JSON database (synchronized across all devices)
+  // 2. Automatically save state modifications to Cloud Firestore database (synchronized across all devices in real-time)
   useEffect(() => {
     if (!hasLoadedFromServer) return;
 
@@ -561,33 +623,29 @@ export default function App() {
     localStorage.setItem('bm_cctv_url', cctvUrl);
     localStorage.setItem('bm_portal_bg_url', portalBgUrl);
 
-    // Save to the server-side persistent database
-    const saveData = async () => {
+    // Synchronize to the cloud Firestore database
+    const syncToCloud = async () => {
       try {
-        await fetch('/api/data', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            news: newsList,
-            jobs: jobsList,
-            umkm: umkmList,
-            reports: reportsList,
-            viralFeed: viralFeed,
-            tickerText: tickerText,
-            cctvUrl: cctvUrl,
-            portalBgUrl: portalBgUrl
-          })
+        await syncListToCollection<NewsItem>('news', newsList);
+        await syncListToCollection<JobItem>('jobs', jobsList);
+        await syncListToCollection<UMKMItem>('umkm', umkmList);
+        await syncListToCollection<CitizenReport>('reports', reportsList);
+        await syncListToCollection<ViralInfoItem>('viralFeed', viralFeed);
+        
+        await saveDocument('settings', 'portal', {
+          id: 'portal',
+          tickerText,
+          cctvUrl,
+          portalBgUrl
         });
       } catch (err) {
-        console.error("[Sync DB] Failed to save synchronized database to server:", err);
+        console.error("[Sync DB] Failed to save synchronized database to Cloud Firestore:", err);
       }
     };
 
     // Debounce saves by 1200ms to avoid overloading the network during active updates
     const timer = setTimeout(() => {
-      saveData();
+      syncToCloud();
     }, 1200);
 
     return () => clearTimeout(timer);

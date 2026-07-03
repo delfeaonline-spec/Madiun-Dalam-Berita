@@ -1,0 +1,135 @@
+{
+  "entities": {
+    "NewsItem": {
+      "title": "NewsItem",
+      "description": "Berita terkini Madiun Raya",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID unik berita" },
+        "title": { "type": "string", "description": "Judul berita" },
+        "category": { "type": "string", "description": "Kategori berita" },
+        "date": { "type": "string", "description": "Tanggal publikasi" },
+        "readTime": { "type": "string", "description": "Estimasi waktu baca" },
+        "summary": { "type": "string", "description": "Ringkasan berita" },
+        "content": { "type": "string", "description": "Konten lengkap berita" },
+        "author": { "type": "string", "description": "Nama penulis" },
+        "imageBg": { "type": "string", "description": "Gaya tampilan latar belakang gambar" },
+        "link": { "type": "string", "description": "Tautan berita eksternal jika ada" },
+        "thumbnail": { "type": "string", "description": "Tautan gambar mini" }
+      },
+      "required": ["id", "title", "category", "date", "summary", "content", "author"]
+    },
+    "JobItem": {
+      "title": "JobItem",
+      "description": "Lowongan kerja Madiun Raya",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID unik lowongan" },
+        "title": { "type": "string", "description": "Posisi pekerjaan" },
+        "company": { "type": "string", "description": "Nama perusahaan" },
+        "location": { "type": "string", "description": "Lokasi kerja" },
+        "type": { "type": "string", "description": "Jenis pekerjaan" },
+        "salary": { "type": "string", "description": "Gaji atau imbalan" },
+        "requirements": { "type": "string", "description": "Daftar persyaratan" },
+        "postedAt": { "type": "string", "description": "Waktu posting" },
+        "link": { "type": "string", "description": "Tautan pendaftaran eksternal" },
+        "description": { "type": "string", "description": "Deskripsi pekerjaan lengkap" }
+      },
+      "required": ["id", "title", "company", "location", "type", "postedAt"]
+    },
+    "UMKMItem": {
+      "title": "UMKMItem",
+      "description": "Produk atau jasa UMKM Madiun Raya",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID unik produk" },
+        "name": { "type": "string", "description": "Nama produk atau jasa" },
+        "price": { "type": "number", "description": "Harga produk" },
+        "category": { "type": "string", "description": "Kategori UMKM" },
+        "description": { "type": "string", "description": "Deskripsi lengkap produk" },
+        "contact": { "type": "string", "description": "Nomor kontak penjual" },
+        "seller": { "type": "string", "description": "Nama penjual" },
+        "rating": { "type": "number", "description": "Rating ulasan produk" },
+        "imageBg": { "type": "string", "description": "Gaya latar belakang default" },
+        "imageUrl": { "type": "string", "description": "URL gambar produk jika ada" },
+        "address": { "type": "string", "description": "Alamat lokasi usaha" }
+      },
+      "required": ["id", "name", "price", "category", "description", "contact", "seller"]
+    },
+    "CitizenReport": {
+      "title": "CitizenReport",
+      "description": "Laporan kejadian atau keluhan dari warga",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID unik laporan" },
+        "title": { "type": "string", "description": "Judul laporan kejadian" },
+        "reporter": { "type": "string", "description": "Nama pelapor" },
+        "category": { "type": "string", "description": "Kategori laporan" },
+        "time": { "type": "string", "description": "Waktu kejadian" },
+        "urgency": { "type": "string", "description": "Tingkat urgensi" },
+        "upvotes": { "type": "number", "description": "Jumlah upvote laporan" },
+        "comments": { "type": "string", "description": "Komentar-komentar warga" },
+        "description": { "type": "string", "description": "Deskripsi lengkap kejadian" },
+        "imageUrl": { "type": "string", "description": "Tautan foto bukti kejadian" },
+        "location": { "type": "string", "description": "Lokasi detail kejadian" }
+      },
+      "required": ["id", "title", "reporter", "category", "time", "urgency", "upvotes", "description"]
+    },
+    "ViralFeed": {
+      "title": "ViralFeed",
+      "description": "Informasi kejadian viral Madiun Raya",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID unik info viral" },
+        "platform": { "type": "string", "description": "Nama platform asal" },
+        "title": { "type": "string", "description": "Judul konten viral" },
+        "sourceUrl": { "type": "string", "description": "Tautan posting asli" },
+        "author": { "type": "string", "description": "Pembuat konten" },
+        "date": { "type": "string", "description": "Tanggal rilis" },
+        "likes": { "type": "string", "description": "Jumlah likes" },
+        "views": { "type": "string", "description": "Jumlah tayangan jika ada" },
+        "description": { "type": "string", "description": "Deskripsi isi konten" },
+        "imageUrl": { "type": "string", "description": "Tautan gambar preview" },
+        "location": { "type": "string", "description": "Lokasi kejadian" }
+      },
+      "required": ["id", "platform", "title", "sourceUrl", "author", "date", "likes", "description", "location"]
+    },
+    "SettingsPortal": {
+      "title": "SettingsPortal",
+      "description": "Pengaturan portal Berita Madiun",
+      "type": "object",
+      "properties": {
+        "tickerText": { "type": "string", "description": "Teks berjalan portal" },
+        "cctvUrl": { "type": "string", "description": "Tautan CCTV default" },
+        "portalBgUrl": { "type": "string", "description": "Tautan latar belakang banner" }
+      },
+      "required": ["tickerText", "cctvUrl", "portalBgUrl"]
+    }
+  },
+  "firestore": {
+    "/news/{newsId}": {
+      "schema": "NewsItem",
+      "description": "Daftar berita portal warga"
+    },
+    "/jobs/{jobId}": {
+      "schema": "JobItem",
+      "description": "Daftar lowongan kerja"
+    },
+    "/umkm/{umkmId}": {
+      "schema": "UMKMItem",
+      "description": "Daftar produk/jasa UMKM warga"
+    },
+    "/reports/{reportId}": {
+      "schema": "CitizenReport",
+      "description": "Laporan pengaduan warga"
+    },
+    "/viralFeed/{viralId}": {
+      "schema": "ViralFeed",
+      "description": "Koleksi konten viral media sosial"
+    },
+    "/settings/{settingId}": {
+      "schema": "SettingsPortal",
+      "description": "Konfigurasi portal umum"
+    }
+  }
+}

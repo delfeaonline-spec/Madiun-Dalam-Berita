@@ -43,7 +43,8 @@ import {
   Instagram,
   RefreshCw,
   CloudSun,
-  ExternalLink
+  ExternalLink,
+  Video
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -69,6 +70,8 @@ interface AdminPanelProps {
   autoGenerateTickerText: () => string;
   portalBgUrl: string;
   setPortalBgUrl: (url: string) => void;
+  cctvUrl: string;
+  setCctvUrl: (url: string) => void;
 }
 
 export default function AdminPanel({
@@ -93,7 +96,9 @@ export default function AdminPanel({
   setWeatherData,
   autoGenerateTickerText,
   portalBgUrl,
-  setPortalBgUrl
+  setPortalBgUrl,
+  cctvUrl,
+  setCctvUrl
 }: AdminPanelProps) {
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -1134,6 +1139,83 @@ export default function AdminPanel({
                   className="bg-white hover:bg-slate-150 text-slate-700 font-extrabold py-2 px-3.5 rounded-xl text-xs border border-slate-200 shadow-sm transition"
                 >
                   🟢 Gradasi Emerald Bawaan
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <hr className="border-slate-100" />
+
+        {/* CCTV Configuration Section */}
+        <div>
+          <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2 mb-2">
+            <Video className="h-4.5 w-4.5 text-rose-600" /> Integrasi CCTV Kota Madiun
+          </h3>
+          <p className="text-xs text-slate-500 leading-relaxed mb-4">
+            Ubah atau sesuaikan alamat tautan (URL) CCTV Kota Madiun. Tautan ini akan dimuat secara langsung di tab utama "CCTV Madiun" untuk dipantau oleh warga secara real-time.
+          </p>
+
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="text"
+                value={cctvUrl}
+                onChange={(e) => setCctvUrl(e.target.value)}
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl py-2.5 px-4 text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-mono text-slate-700"
+                placeholder="Masukkan URL Portal CCTV (https://...)"
+              />
+              <button
+                onClick={() => triggerToast('Alamat URL CCTV Berhasil Disimpan!', 'success')}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition duration-150 shadow shrink-0"
+              >
+                Simpan URL CCTV
+              </button>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-150 flex flex-col md:flex-row items-center gap-4 justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600 shrink-0 shadow-inner">
+                  <Video className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-800">Pratinjau Alamat URL CCTV Terpasang</p>
+                  <p className="text-[10px] font-mono text-slate-500 mt-0.5 truncate max-w-xs sm:max-w-md">{cctvUrl}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCctvUrl('https://cctv.villabs.id/cctv/');
+                    triggerToast('Berhasil menggunakan tautan bawaan: VillaBS CCTV!', 'success');
+                  }}
+                  className="bg-white hover:bg-slate-150 text-slate-700 font-extrabold py-2 px-3.5 rounded-xl text-xs border border-slate-200 shadow-sm transition"
+                >
+                  📡 Bawaan (VillaBS)
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCctvUrl('https://atcs.madiunkota.go.id/');
+                    triggerToast('Menggunakan URL Alternatif: ATCS Dishub Kota Madiun!', 'success');
+                  }}
+                  className="bg-white hover:bg-slate-150 text-slate-700 font-extrabold py-2 px-3.5 rounded-xl text-xs border border-slate-200 shadow-sm transition"
+                >
+                  🚦 ATCS Dishub
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCctvUrl('https://madiunkab.go.id/cctv-publik/');
+                    triggerToast('Menggunakan URL Alternatif: CCTV Publik Kabupaten Madiun!', 'success');
+                  }}
+                  className="bg-white hover:bg-slate-150 text-slate-700 font-extrabold py-2 px-3.5 rounded-xl text-xs border border-slate-200 shadow-sm transition"
+                >
+                  🌳 CCTV Kabupaten
                 </button>
               </div>
             </div>

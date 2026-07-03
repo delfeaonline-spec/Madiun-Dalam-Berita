@@ -35,7 +35,8 @@ import {
   Facebook,
   Instagram,
   TrendingUp,
-  Tv
+  Tv,
+  Video
 } from 'lucide-react';
 
 import { NewsItem, JobItem, UMKMItem, CitizenReport, RssRotationSource, ViralInfoItem, ComplaintChannel, MadiunWeather } from './types';
@@ -406,7 +407,7 @@ export default function App() {
   // ==========================================
   // STATE MANAGEMENT
   // ==========================================
-  const [activeTab, setActiveTab] = useState<'news' | 'jobs' | 'umkm' | 'reports' | 'admin'>('news');
+  const [activeTab, setActiveTab] = useState<'news' | 'jobs' | 'umkm' | 'reports' | 'admin' | 'cctv'>('news');
   
   const [tickerText, setTickerText] = useState<string>(() => {
     return localStorage.getItem('bm_ticker_text') || 'Menghubungkan satelit cuaca BMKG dan info hit viral Madiun Raya...';
@@ -415,6 +416,15 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('bm_ticker_text', tickerText);
   }, [tickerText]);
+
+  // Customizable CCTV URL
+  const [cctvUrl, setCctvUrl] = useState<string>(() => {
+    return localStorage.getItem('bm_cctv_url') || 'https://cctv.villabs.id/cctv/';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('bm_cctv_url', cctvUrl);
+  }, [cctvUrl]);
 
   // Customizable Sub Hero Banner background image URL
   const [portalBgUrl, setPortalBgUrl] = useState<string>(() => {
@@ -1950,6 +1960,20 @@ export default function App() {
             </button>
 
             <button
+              onClick={() => handleTabChange('cctv')}
+              className={`flex items-center space-x-2 px-4 py-3 rounded-lg text-sm font-bold transition duration-200 ${
+                activeTab === 'cctv'
+                  ? 'bg-white text-emerald-700 shadow-sm border-b border-emerald-600/10'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              }`}
+              id="tab-cctv"
+            >
+              <Video className="h-4.5 w-4.5 text-rose-500" />
+              <span>CCTV Madiun</span>
+              <span className="bg-rose-100 text-rose-700 text-[9px] px-1.5 py-0.5 rounded-full font-bold">LIVE</span>
+            </button>
+
+            <button
               onClick={() => handleTabChange('admin')}
               className={`flex items-center space-x-2 px-4 py-3 rounded-lg text-sm font-bold transition duration-200 ${
                 activeTab === 'admin'
@@ -3309,6 +3333,143 @@ export default function App() {
           </div>
         )}
 
+        {/* TAB 6: CCTV KOTA MADIUN */}
+        {activeTab === 'cctv' && (
+          <div className="space-y-6" id="cctv-section-panel">
+            <div className="bg-gradient-to-r from-slate-900 to-slate-950 border border-slate-800 text-slate-100 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden" id="cctv-header-banner">
+              <div className="absolute inset-0 opacity-5 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]"></div>
+              <div className="relative z-10 max-w-3xl space-y-3">
+                <span className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest bg-rose-500/20 text-rose-300 rounded-full border border-rose-500/30 inline-block animate-pulse">
+                  ● Live Streaming Pemantauan
+                </span>
+                <h3 className="text-2xl md:text-3xl font-serif font-extrabold text-white tracking-tight">
+                  CCTV Lalu Lintas & Area Publik Kota Madiun
+                </h3>
+                <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
+                  Pantau kondisi arus lalu luntas secara langsung (real-time) di berbagai simpang jalan protokol, pusat keramaian, dan kawasan strategis Kota Madiun. Membantu Anda merencanakan perjalanan bebas hambatan dan memantau situasi kota terkini.
+                </p>
+                <div className="flex flex-wrap items-center gap-2.5 pt-1.5">
+                  <span className="text-[11px] text-slate-400 font-medium">Layanan Integrasi Publik:</span>
+                  <span className="bg-slate-800 border border-slate-700 text-slate-300 font-bold text-[10px] px-2.5 py-1 rounded-lg">Dishub Madiun</span>
+                  <span className="bg-slate-800 border border-slate-700 text-slate-300 font-bold text-[10px] px-2.5 py-1 rounded-lg">Kominfo Madiun Raya</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Popular Spot Preset / Shortcut Guide */}
+            <div className="bg-white rounded-3xl border border-slate-100 p-5 shadow-sm space-y-4" id="cctv-spots-bar">
+              <div>
+                <h4 className="font-extrabold text-sm text-slate-900 font-serif flex items-center gap-2">
+                  <Video className="h-4 w-4 text-emerald-600" /> Kawasan Pantauan Populer Madiun
+                </h4>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Gunakan daftar pintasan kawasan di bawah ini untuk melihat navigasi kamera pemantau di dalam portal CCTV utama.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2.5">
+                {[
+                  { name: '🗼 Pahlawan Street Center (PSC)', info: 'Pusat wisata replika ikon dunia Kota Madiun' },
+                  { name: '🏟️ Alun-Alun Kota Madiun', info: 'Pusat kegiatan warga dan wisata kuliner' },
+                  { name: '🔄 Simpang Sleko (Patung Pendekar)', info: 'Titik temu arus lalu lintas utama' },
+                  { name: '🏢 Simpang Kartoharjo', info: 'Kawasan perkantoran & perbelanjaan' },
+                  { name: '🛤️ Simpang Tean (Caruban)', info: 'Jalur penghubung utama antar kota' },
+                  { name: '🌳 Simpang Geger (Kabupaten)', info: 'Koridor selatan menuju Ponorogo' },
+                  { name: '🏬 Simpang Jalan pahlawan', info: 'Koridor pusat bisnis dan belanja' }
+                ].map((spot, index) => (
+                  <button
+                    key={index}
+                    onClick={() => triggerToast(`Navigasikan ke "${spot.name}" di dalam daftar kamera CCTV di bawah.`, 'info')}
+                    className="bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-[11px] py-2 px-3.5 rounded-xl border border-slate-200 transition duration-150 text-left hover:border-emerald-500/30 group"
+                  >
+                    <span>{spot.name}</span>
+                    <p className="text-[9px] text-slate-400 font-medium group-hover:text-slate-500 transition mt-0.5">{spot.info}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Main Interactive Live CCTV Screen Frame */}
+            <div className="bg-slate-950 rounded-3xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col" id="cctv-player-container">
+              
+              {/* CCTV Status bar / Controls */}
+              <div className="p-4 bg-slate-900 border-b border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-2.5 w-2.5 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                  </span>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-extrabold text-white">PORTAL CCTV KOTA MADIUN</span>
+                      <span className="bg-slate-800 text-slate-400 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">HTTPS SECURE</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 font-mono mt-0.5 truncate max-w-xs sm:max-w-md">{cctvUrl}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+                  <button
+                    onClick={() => {
+                      const frame = document.getElementById('cctv-iframe') as HTMLIFrameElement;
+                      if (frame) frame.src = cctvUrl;
+                      triggerToast('Melakukan memuat ulang CCTV...', 'info');
+                    }}
+                    className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2 px-3.5 rounded-xl text-[11px] transition duration-150 flex items-center gap-1.5 border border-slate-700"
+                  >
+                    <RefreshCw className="h-3 w-3" /> Segarkan
+                  </button>
+                  <a
+                    href={cctvUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-4 rounded-xl text-[11px] transition duration-150 flex items-center gap-1.5 shadow-md shadow-rose-950/20"
+                  >
+                    <ExternalLink className="h-3 w-3" /> Buka Layar Penuh ↗
+                  </a>
+                </div>
+              </div>
+
+              {/* Iframe View area */}
+              <div className="relative bg-slate-900" style={{ height: '560px' }}>
+                <iframe
+                  id="cctv-iframe"
+                  src={cctvUrl}
+                  title="CCTV Kota Madiun"
+                  className="w-full h-full border-0 rounded-b-3xl bg-slate-950"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                ></iframe>
+              </div>
+
+            </div>
+
+            {/* Secure IFrame Overlay Hint / Helpful fallback widget - Now positioned elegantly below the player */}
+            <div className="bg-slate-900/95 border border-slate-800 p-5 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg text-slate-100" id="cctv-fallback-notice">
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <Info className="h-4 w-4 text-amber-400 shrink-0" /> Gambar tidak tampil?
+                </p>
+                <p className="text-[11px] text-slate-300 leading-relaxed max-w-2xl">
+                  Beberapa jenis browser memblokir frame eksternal karena kebijakan keamanan HTTPS (Mixed Content / X-Frame-Options). Jika frame CCTV di atas kosong atau berkedip, silakan klik tombol di samping untuk membuka portal pemantau lalu lintas resmi secara langsung di jendela baru.
+                </p>
+              </div>
+              <a
+                href={cctvUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-2.5 px-5 rounded-xl transition duration-150 text-center shadow-md shadow-rose-950/20 shrink-0"
+              >
+                Buka Di Jendela Baru ↗
+              </a>
+            </div>
+
+            {/* Disclaimer & Policy */}
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-[10px] text-slate-500 leading-relaxed">
+              <strong>Catatan Penting:</strong> Layanan pantauan CCTV ini disajikan demi kemaslahatan masyarakat umum. Seluruh materi, kelancaran transmisi video stream, dan ketersediaan kamera di lapangan merupakan wewenang penuh dari penyedia layanan instansi terkait. Silakan hubungi admin pengelola di menu "Kelola Portal" untuk merubah atau mengganti tautan penyiaran CCTV jika terdapat perubahan domain server.
+            </div>
+          </div>
+        )}
+
         {/* TAB 5: ADMIN PANEL PORTAL */}
         {activeTab === 'admin' && (
           <AdminPanel
@@ -3334,6 +3495,8 @@ export default function App() {
             autoGenerateTickerText={() => autoGenerateTickerText(viralFeed, newsList, rssNewsList, reportsList, weatherData)}
             portalBgUrl={portalBgUrl}
             setPortalBgUrl={setPortalBgUrl}
+            cctvUrl={cctvUrl}
+            setCctvUrl={setCctvUrl}
           />
         )}
 

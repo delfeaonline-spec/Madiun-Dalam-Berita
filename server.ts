@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 
 function getFallbackArticles(url: string): any[] {
@@ -707,6 +708,49 @@ async function startServer() {
     } catch (err: any) {
       console.error("[Server API] Weather handler error:", err);
       res.status(500).json({ error: "Failed to fetch weather data" });
+    }
+  });
+
+  // DB File Path
+  const DB_FILE = path.join(process.cwd(), "db.json");
+
+  // Helper to read DB
+  const readDb = () => {
+    try {
+      if (fs.existsSync(DB_FILE)) {
+        const content = fs.readFileSync(DB_FILE, "utf-8");
+        return JSON.parse(content);
+      }
+    } catch (err) {
+      console.error("[Server DB] Error reading db.json:", err);
+    }
+    return null;
+  };
+
+  // Helper to write DB
+  const writeDb = (data: any) => {
+    try {
+      fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
+      return true;
+    } catch (err) {
+      console.error("[Server DB] Error writing db.json:", err);
+      return false;
+    }
+  };
+
+  // GET synchronized data from db.json
+  app.get("/api/data", (req, res) => {
+    const data = readDb();
+    res.json(data);
+  });
+
+  // POST/PUT synchronized data to db.json
+  app.post("/api/data", (req, res) => {
+    const success = writeDb(req.body);
+    if (success) {
+      res.json({ status: "success" });
+    } else {
+      res.status(500).json({ error: "Failed to write database file" });
     }
   });
 

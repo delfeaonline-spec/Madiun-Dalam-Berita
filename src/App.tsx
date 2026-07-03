@@ -517,26 +517,81 @@ export default function App() {
     return saved ? JSON.parse(saved) : INITIAL_VIRAL_FEED;
   });
 
-  // Sync to LocalStorage
+  // Track whether we have successfully synchronized from the backend database (db.json)
+  const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
+
+  // 1. Fetch synchronized database from server on mount
   useEffect(() => {
+    const fetchSyncData = async () => {
+      try {
+        const res = await fetch('/api/data');
+        if (res.ok) {
+          const syncData = await res.json();
+          if (syncData) {
+            if (syncData.news) setNewsList(syncData.news);
+            if (syncData.jobs) setJobsList(syncData.jobs);
+            if (syncData.umkm) setUmkmList(syncData.umkm);
+            if (syncData.reports) setReportsList(syncData.reports);
+            if (syncData.viralFeed) setViralFeed(syncData.viralFeed);
+            if (syncData.tickerText) setTickerText(syncData.tickerText);
+            if (syncData.cctvUrl) setCctvUrl(syncData.cctvUrl);
+            if (syncData.portalBgUrl) setPortalBgUrl(syncData.portalBgUrl);
+          }
+        }
+      } catch (err) {
+        console.error("[Sync DB] Failed to load synchronized database from server:", err);
+      } finally {
+        setHasLoadedFromServer(true);
+      }
+    };
+    fetchSyncData();
+  }, []);
+
+  // 2. Automatically save state modifications to server-side JSON database (synchronized across all devices)
+  useEffect(() => {
+    if (!hasLoadedFromServer) return;
+
+    // Save to localStorage as a fast local fallback/cache
     localStorage.setItem('bm_news', JSON.stringify(newsList));
-  }, [newsList]);
-
-  useEffect(() => {
     localStorage.setItem('bm_jobs', JSON.stringify(jobsList));
-  }, [jobsList]);
-
-  useEffect(() => {
     localStorage.setItem('bm_umkm', JSON.stringify(umkmList));
-  }, [umkmList]);
-
-  useEffect(() => {
     localStorage.setItem('bm_reports', JSON.stringify(reportsList));
-  }, [reportsList]);
-
-  useEffect(() => {
     localStorage.setItem('bm_viral_feed', JSON.stringify(viralFeed));
-  }, [viralFeed]);
+    localStorage.setItem('bm_ticker_text', tickerText);
+    localStorage.setItem('bm_cctv_url', cctvUrl);
+    localStorage.setItem('bm_portal_bg_url', portalBgUrl);
+
+    // Save to the server-side persistent database
+    const saveData = async () => {
+      try {
+        await fetch('/api/data', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            news: newsList,
+            jobs: jobsList,
+            umkm: umkmList,
+            reports: reportsList,
+            viralFeed: viralFeed,
+            tickerText: tickerText,
+            cctvUrl: cctvUrl,
+            portalBgUrl: portalBgUrl
+          })
+        });
+      } catch (err) {
+        console.error("[Sync DB] Failed to save synchronized database to server:", err);
+      }
+    };
+
+    // Debounce saves by 1200ms to avoid overloading the network during active updates
+    const timer = setTimeout(() => {
+      saveData();
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [newsList, jobsList, umkmList, reportsList, viralFeed, tickerText, cctvUrl, portalBgUrl, hasLoadedFromServer]);
 
   // General Filter / Search States
   const [searchQuery, setSearchQuery] = useState('');

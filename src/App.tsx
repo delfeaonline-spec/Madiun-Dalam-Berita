@@ -632,6 +632,7 @@ export default function App() {
           news = INITIAL_NEWS;
         }
         setNewsList(news);
+        localStorage.setItem('bm_news', JSON.stringify(news));
 
         // Fetch and Seed Jobs
         let jobs = await fetchCollectionData<JobItem>('jobs');
@@ -643,6 +644,7 @@ export default function App() {
           jobs = INITIAL_JOBS;
         }
         setJobsList(jobs);
+        localStorage.setItem('bm_jobs', JSON.stringify(jobs));
 
         // Fetch and Seed UMKM
         let umkm = await fetchCollectionData<UMKMItem>('umkm');
@@ -654,6 +656,7 @@ export default function App() {
           umkm = INITIAL_UMKM;
         }
         setUmkmList(umkm);
+        localStorage.setItem('bm_umkm', JSON.stringify(umkm));
 
         // Fetch and Seed Reports
         let reports = await fetchCollectionData<CitizenReport>('reports');
@@ -665,6 +668,7 @@ export default function App() {
           reports = INITIAL_REPORTS;
         }
         setReportsList(reports);
+        localStorage.setItem('bm_reports', JSON.stringify(reports));
 
         // Fetch and Seed Viral
         let viral = await fetchCollectionData<ViralInfoItem>('viralFeed');
@@ -676,6 +680,7 @@ export default function App() {
           viral = INITIAL_VIRAL_FEED;
         }
         setViralFeed(viral);
+        localStorage.setItem('bm_viral_feed', JSON.stringify(viral));
 
         // Fetch and Seed Settings
         const settings = await fetchCollectionData<any>('settings');
@@ -692,8 +697,13 @@ export default function App() {
           portalSettings = defaultSettings;
         }
         setTickerText(portalSettings.tickerText);
+        localStorage.setItem('bm_ticker_text', portalSettings.tickerText);
+        
         setCctvUrl(portalSettings.cctvUrl);
+        localStorage.setItem('bm_cctv_url', portalSettings.cctvUrl);
+        
         setPortalBgUrl(portalSettings.portalBgUrl);
+        localStorage.setItem('bm_portal_bg_url', portalSettings.portalBgUrl);
 
       } catch (err) {
         console.error("[Sync DB] Failed to load synchronized database from server:", err);

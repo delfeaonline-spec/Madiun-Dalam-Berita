@@ -2,6 +2,70 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, writeBatch, getDoc } from 'firebase/firestore';
+
+// Initialize Firebase server-side connection using the same config
+let db: any = null;
+try {
+  const firebaseConfigPath = path.join(process.cwd(), 'firebase-applet-config.json');
+  if (fs.existsSync(firebaseConfigPath)) {
+    const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, 'utf-8'));
+    const firebaseApp = initializeApp(firebaseConfig);
+    db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
+    console.log("[Server Firebase] Successfully initialized server-side Firebase Firestore.");
+  } else {
+    console.error("[Server Firebase] Warning: firebase-applet-config.json not found.");
+  }
+} catch (firebaseErr) {
+  console.error("[Server Firebase] Error initializing server-side Firebase:", firebaseErr);
+}
+
+async function serverFetchCollection(collectionName: string) {
+  if (!db) return [];
+  const querySnapshot = await getDocs(collection(db, collectionName));
+  const items: any[] = [];
+  querySnapshot.forEach((docSnap) => {
+    items.push({ ...docSnap.data() });
+  });
+  return items;
+}
+
+async function serverSaveDocument(collectionName: string, docId: string, data: any) {
+  if (!db) return;
+  await setDoc(doc(db, collectionName, docId), data);
+}
+
+async function serverDeleteDocument(collectionName: string, docId: string) {
+  if (!db) return;
+  await deleteDoc(doc(db, collectionName, docId));
+}
+
+async function serverSyncListToCollection(collectionName: string, localList: any[]) {
+  if (!db) return;
+  const querySnapshot = await getDocs(collection(db, collectionName));
+  const existingDocs = new Map<string, any>();
+  querySnapshot.forEach((docSnap) => {
+    existingDocs.set(docSnap.id, docSnap.data());
+  });
+
+  const batch = writeBatch(db);
+  const localIds = new Set<string>();
+
+  localList.forEach((item) => {
+    const docId = item.id.toString();
+    localIds.add(docId);
+    batch.set(doc(db, collectionName, docId), item);
+  });
+
+  existingDocs.forEach((_, docId) => {
+    if (!localIds.has(docId)) {
+      batch.delete(doc(db, collectionName, docId));
+    }
+  });
+
+  await batch.commit();
+}
 
 function getFallbackArticles(url: string): any[] {
   const now = new Date();
@@ -401,12 +465,335 @@ async function fetchBMKGWeather(): Promise<any> {
   }
 }
 
+async function fetchAndCacheRss(targetUrl: string): Promise<any> {
+  let resBody: any = null;
+
+  // Special scraper for Detik Tag Pages (e.g. detik.com/tag/madiun)
+  if (targetUrl.includes("detik.com/tag/")) {
+    try {
+      console.log(`[Server API] Scraping Detik Tag URL: ${targetUrl}`);
+      const response = await fetchWithTimeout(targetUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+          "Cache-Control": "no-cache"
+        }
+      }, 3000);
+      
+      if (response.ok) {
+        const html = await response.text();
+        const articles: any[] = [];
+        
+        // Match each article block (can be <article> or <div class="list-content__item">)
+        const blocks: string[] = [];
+        const articleRegex = /<article[^>]*>([\s\S]*?)<\/article>/gi;
+        let match;
+        while ((match = articleRegex.exec(html)) !== null) {
+          blocks.push(match[1]);
+        }
+        
+        // Fallback regex if <article> not found
+        if (blocks.length === 0) {
+          const divRegex = /<div[^>]*class="[^"]*list-content__item[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/gi;
+          while ((match = divRegex.exec(html)) !== null) {
+            blocks.push(match[1]);
+          }
+        }
+        
+        let idx = 0;
+        for (const articleHtml of blocks) {
+          if (idx >= 25) break;
+          
+          // 1. Link
+          const hrefMatch = /href="([^"]+)"/i.exec(articleHtml);
+          if (!hrefMatch) continue;
+          const link = hrefMatch[1];
+          
+          // 2. Title
+          let title = "";
+          const h3Match = /<h3[^>]*class="[^"]*title[^"]*"[^>]*>([\s\S]*?)<\/h3>/i.exec(articleHtml) 
+            || /<h3[^>]*>([\s\S]*?)<\/h3>/i.exec(articleHtml) 
+            || /<h2[^>]*>([\s\S]*?)<\/h2>/i.exec(articleHtml)
+            || /class="[^"]*(?:title|list-content__title)[^"]*"[^>]*>([\s\S]*?)<\/(?:span|div|h3|h2)>/i.exec(articleHtml);
+            
+          if (h3Match) {
+            title = h3Match[1].replace(/<[^>]*>/g, "").trim();
+          }
+          if (!title) continue;
+          
+          // 3. Thumbnail
+          let thumbnail = "";
+          const imgMatch = /<img[^>]+(?:src|data-src)="([^">]+)"/i.exec(articleHtml);
+          if (imgMatch) {
+            thumbnail = imgMatch[1];
+          }
+          
+          // 4. Date
+          let pubDate = "";
+          const dateMatch = /class="[^"]*(?:date|time|list-content__date)[^"]*"[^>]*>([\s\S]*?)<\/(?:span|div)>/i.exec(articleHtml);
+          if (dateMatch) {
+            pubDate = dateMatch[1].replace(/<[^>]*>/g, "").trim();
+          }
+          
+          // 5. Description / Summary
+          let summary = "";
+          const descMatch = /<p[^>]*>([\s\S]*?)<\/p>/i.exec(articleHtml)
+            || /class="[^"]*(?:desc|summary|text|list-content__desc)[^"]*"[^>]*>([\s\S]*?)<\/(?:span|div|p)>/i.exec(articleHtml);
+          if (descMatch) {
+            summary = descMatch[1].replace(/<[^>]*>/g, "").trim();
+          }
+          
+          articles.push({
+            title: title.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&rsquo;/g, "'"),
+            link,
+            thumbnail,
+            pubDate: pubDate || new Date().toISOString(),
+            description: summary ? summary.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&rsquo;/g, "'") : title,
+            content: summary || title,
+            author: "Detik Madiun"
+          });
+          idx++;
+        }
+        
+        if (articles.length > 0) {
+          console.log(`[Server API] Scraped ${articles.length} articles successfully from Detik Tag Madiun`);
+          resBody = {
+            status: "ok",
+            items: articles
+          };
+        }
+      }
+      if (!resBody) {
+        console.log("[Server API] Scraping Detik Tag returned 0 articles, falling back to Detik Jatim RSS...");
+      }
+    } catch (scrapeError) {
+      console.log("[Server API] Scraping Detik Tag not available, falling back to Detik Jatim RSS");
+    }
+
+    if (!resBody) {
+      // Fallback: Fetch Detik Jatim RSS and filter for Madiun
+      try {
+        const fallbackFeed = "https://www.detik.com/jatim/rss";
+        const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(fallbackFeed)}`;
+        const response = await fetchWithTimeout(proxyUrl, {}, 3000);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.status === 'ok' && Array.isArray(data.items)) {
+            const keywords = ["madiun", "caruban", "mejayan", "sogaten", "saradan"];
+            const filteredItems = data.items.filter((item: any) => {
+              const titleLower = (item.title || "").toLowerCase();
+              const contentLower = (item.description || item.content || "").toLowerCase();
+              return keywords.some(k => titleLower.includes(k) || contentLower.includes(k));
+            });
+            console.log(`[Server API] Detik RSS Fallback found ${filteredItems.length} Madiun news items.`);
+            resBody = {
+              status: "ok",
+              items: filteredItems.length > 0 ? filteredItems : data.items.slice(0, 10) // fallback to standard news if filter is empty
+            };
+          }
+        }
+      } catch (fallbackError) {
+        console.log("[Server API] Detik Jatim RSS fallback not available");
+      }
+    }
+  }
+
+  if (!resBody) {
+    try {
+      // Attempt 1: Fetch via rss2json from server side
+      const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(targetUrl)}`;
+      const response = await fetchWithTimeout(proxyUrl, {}, 2000);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.status === 'ok') {
+          resBody = data;
+        }
+      }
+    } catch (error) {
+      console.log(`[Server API] Info: rss2json proxy status not ok for ${targetUrl}, trying raw XML fetch...`);
+    }
+  }
+
+  if (!resBody) {
+    // Attempt 2: Direct raw fetch of the RSS feed
+    try {
+      const response = await fetchWithTimeout(targetUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept": "text/xml, application/xml, application/rss+xml, text/html"
+        }
+      }, 2000);
+      if (response.ok) {
+        const xmlText = await response.text();
+        if (xmlText && isValidRssXml(xmlText)) {
+          console.log(`[Server API] Direct raw XML fetch succeeded for ${targetUrl}`);
+          resBody = { status: 'xml', xml: xmlText };
+        }
+      }
+    } catch (directError: any) {
+      console.log(`[Server API] Info: Direct fetch not available for ${targetUrl}`);
+    }
+  }
+
+  if (!resBody) {
+    // Attempt 3: Fetch via corsproxy.io
+    try {
+      const corsProxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+      const response = await fetchWithTimeout(corsProxyUrl, {}, 1500);
+      if (response.ok) {
+        const xmlText = await response.text();
+        if (xmlText && isValidRssXml(xmlText)) {
+          console.log(`[Server API] corsproxy.io fetch succeeded for ${targetUrl}`);
+          resBody = { status: 'xml', xml: xmlText };
+        }
+      }
+    } catch (corsProxyError: any) {
+      console.log(`[Server API] Info: corsproxy not available for ${targetUrl}`);
+    }
+  }
+
+  if (!resBody) {
+    // Fallback
+    const fallbacks = getFallbackArticles(targetUrl);
+    if (fallbacks.length > 0) {
+      console.log(`[Server API] Serving high-quality offline articles for ${targetUrl}`);
+      resBody = {
+        status: 'ok',
+        items: fallbacks
+      };
+    }
+  }
+
+  if (!resBody) {
+    resBody = { 
+      status: 'error', 
+      items: [],
+      message: `Offline mode active for this source` 
+    };
+  }
+
+  // Save to in-memory cache
+  rssCache[targetUrl] = {
+    data: resBody,
+    timestamp: Date.now()
+  };
+
+  // Save to Firestore persisted cache
+  if (db && resBody && resBody.status !== 'error') {
+    try {
+      const docId = Buffer.from(targetUrl).toString('base64');
+      await setDoc(doc(db, "rssCache", docId), {
+        id: docId,
+        targetUrl,
+        timestamp: Date.now(),
+        data: resBody
+      });
+      console.log(`[Server API] Successfully persisted RSS cache to Firestore for: ${targetUrl}`);
+    } catch (dbErr) {
+      console.error("[Server API] Error saving RSS cache to Firestore:", dbErr);
+    }
+  }
+
+  return resBody;
+}
+
+// Background asynchronous refresh function to avoid blocking the main request
+function performBackgroundRssFetch(targetUrl: string, feedUrl: string) {
+  setTimeout(async () => {
+    try {
+      console.log(`[Server API Bg] Starting background refresh for: ${targetUrl}`);
+      await fetchAndCacheRss(targetUrl);
+      console.log(`[Server API Bg] Background refresh completed for: ${targetUrl}`);
+    } catch (bgErr) {
+      console.error(`[Server API Bg] Error in background fetch for: ${targetUrl}`, bgErr);
+    }
+  }, 50);
+}
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
   // Enable JSON request bodies
   app.use(express.json());
+
+  // ==========================================
+  // SERVER-SIDE FIRESTORE PROXY ENDPOINTS
+  // ==========================================
+  app.get("/api/db/get", async (req, res) => {
+    const collectionName = req.query.collection as string;
+    if (!collectionName) {
+      return res.status(400).json({ success: false, error: "Missing collection parameter" });
+    }
+    try {
+      const data = await serverFetchCollection(collectionName);
+      return res.json({ success: true, data });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.get("/api/db/get-all", async (req, res) => {
+    try {
+      const [news, jobs, umkm, reports, viralFeed, settings] = await Promise.all([
+        serverFetchCollection('news'),
+        serverFetchCollection('jobs'),
+        serverFetchCollection('umkm'),
+        serverFetchCollection('reports'),
+        serverFetchCollection('viralFeed'),
+        serverFetchCollection('settings')
+      ]);
+      return res.json({
+        success: true,
+        data: { news, jobs, umkm, reports, viralFeed, settings }
+      });
+    } catch (err: any) {
+      console.error("[Server DB] Error in get-all:", err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post("/api/db/sync", async (req, res) => {
+    const { collectionName, list } = req.body;
+    if (!collectionName || !Array.isArray(list)) {
+      return res.status(400).json({ success: false, error: "Invalid parameters" });
+    }
+    try {
+      await serverSyncListToCollection(collectionName, list);
+      return res.json({ success: true });
+    } catch (err: any) {
+      console.error(`[Server DB] Error syncing ${collectionName}:`, err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post("/api/db/save", async (req, res) => {
+    const { collectionName, docId, data } = req.body;
+    if (!collectionName || !docId || !data) {
+      return res.status(400).json({ success: false, error: "Invalid parameters" });
+    }
+    try {
+      await serverSaveDocument(collectionName, docId, data);
+      return res.json({ success: true });
+    } catch (err: any) {
+      console.error(`[Server DB] Error saving to ${collectionName}/${docId}:`, err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post("/api/db/delete", async (req, res) => {
+    const { collectionName, docId } = req.body;
+    if (!collectionName || !docId) {
+      return res.status(400).json({ success: false, error: "Invalid parameters" });
+    }
+    try {
+      await serverDeleteDocument(collectionName, docId);
+      return res.json({ success: true });
+    } catch (err: any) {
+      console.error(`[Server DB] Error deleting from ${collectionName}/${docId}:`, err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
 
   app.get("/api/rss", async (req, res) => {
     const feedUrl = req.query.url as string;
@@ -430,234 +817,56 @@ async function startServer() {
       console.log(`[Server API] Resolving Radar Madiun Kota page ${feedUrl} to RSS feed: ${targetUrl}`);
     }
 
-    // Periksa in-memory cache terlebih dahulu
-    const cached = rssCache[targetUrl];
-    if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
-      console.log(`[Server API] Serving RSS from cache: ${targetUrl}`);
-      return res.json(cached.data);
+    // 1. Check in-memory cache first (ultrafast)
+    const cachedMem = rssCache[targetUrl];
+    if (cachedMem && (Date.now() - cachedMem.timestamp < CACHE_TTL)) {
+      console.log(`[Server API] Serving RSS from in-memory cache: ${targetUrl}`);
+      return res.json(cachedMem.data);
     }
 
-    // Special scraper for Detik Tag Pages (e.g. detik.com/tag/madiun)
-    if (targetUrl.includes("detik.com/tag/")) {
+    // 2. Check Firestore persisted cache (cross-PC cache synchronization)
+    if (db) {
       try {
-        console.log(`[Server API] Scraping Detik Tag URL: ${targetUrl}`);
-        const response = await fetchWithTimeout(targetUrl, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
-            "Cache-Control": "no-cache"
-          }
-        }, 3000);
-        
-        if (response.ok) {
-          const html = await response.text();
-          const articles: any[] = [];
-          
-          // Match each article block (can be <article> or <div class="list-content__item">)
-          const blocks: string[] = [];
-          const articleRegex = /<article[^>]*>([\s\S]*?)<\/article>/gi;
-          let match;
-          while ((match = articleRegex.exec(html)) !== null) {
-            blocks.push(match[1]);
-          }
-          
-          // Fallback regex if <article> not found
-          if (blocks.length === 0) {
-            const divRegex = /<div[^>]*class="[^"]*list-content__item[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/gi;
-            while ((match = divRegex.exec(html)) !== null) {
-              blocks.push(match[1]);
-            }
-          }
-          
-          let idx = 0;
-          for (const articleHtml of blocks) {
-            if (idx >= 25) break;
-            
-            // 1. Link
-            const hrefMatch = /href="([^"]+)"/i.exec(articleHtml);
-            if (!hrefMatch) continue;
-            const link = hrefMatch[1];
-            
-            // 2. Title
-            let title = "";
-            const h3Match = /<h3[^>]*class="[^"]*title[^"]*"[^>]*>([\s\S]*?)<\/h3>/i.exec(articleHtml) 
-              || /<h3[^>]*>([\s\S]*?)<\/h3>/i.exec(articleHtml) 
-              || /<h2[^>]*>([\s\S]*?)<\/h2>/i.exec(articleHtml)
-              || /class="[^"]*(?:title|list-content__title)[^"]*"[^>]*>([\s\S]*?)<\/(?:span|div|h3|h2)>/i.exec(articleHtml);
-              
-            if (h3Match) {
-              title = h3Match[1].replace(/<[^>]*>/g, "").trim();
-            }
-            if (!title) continue;
-            
-            // 3. Thumbnail
-            let thumbnail = "";
-            const imgMatch = /<img[^>]+(?:src|data-src)="([^">]+)"/i.exec(articleHtml);
-            if (imgMatch) {
-              thumbnail = imgMatch[1];
-            }
-            
-            // 4. Date
-            let pubDate = "";
-            const dateMatch = /class="[^"]*(?:date|time|list-content__date)[^"]*"[^>]*>([\s\S]*?)<\/(?:span|div)>/i.exec(articleHtml);
-            if (dateMatch) {
-              pubDate = dateMatch[1].replace(/<[^>]*>/g, "").trim();
-            }
-            
-            // 5. Description / Summary
-            let summary = "";
-            const descMatch = /<p[^>]*>([\s\S]*?)<\/p>/i.exec(articleHtml)
-              || /class="[^"]*(?:desc|summary|text|list-content__desc)[^"]*"[^>]*>([\s\S]*?)<\/(?:span|div|p)>/i.exec(articleHtml);
-            if (descMatch) {
-              summary = descMatch[1].replace(/<[^>]*>/g, "").trim();
-            }
-            
-            articles.push({
-              title: title.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&rsquo;/g, "'"),
-              link,
-              thumbnail,
-              pubDate: pubDate || new Date().toISOString(),
-              description: summary ? summary.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&rsquo;/g, "'") : title,
-              content: summary || title,
-              author: "Detik Madiun"
-            });
-            idx++;
-          }
-          
-          if (articles.length > 0) {
-            console.log(`[Server API] Scraped ${articles.length} articles successfully from Detik Tag Madiun`);
-            const resBody = {
-              status: "ok",
-              items: articles
-            };
+        const docId = Buffer.from(targetUrl).toString('base64');
+        const docSnap = await getDoc(doc(db, "rssCache", docId));
+        if (docSnap.exists()) {
+          const cachedDb = docSnap.data();
+          const age = Date.now() - cachedDb.timestamp;
+          if (age < CACHE_TTL) {
+            console.log(`[Server API] Serving RSS from Firestore Cache (age: ${Math.round(age/1000)}s): ${targetUrl}`);
+            // Also update in-memory cache so next reads are instant
             rssCache[targetUrl] = {
-              data: resBody,
-              timestamp: Date.now()
+              data: cachedDb.data,
+              timestamp: cachedDb.timestamp
             };
-            return res.json(resBody);
+            return res.json(cachedDb.data);
+          } else {
+            console.log(`[Server API] Firestore Cache expired for: ${targetUrl}. serving stale with background update...`);
+            // Stale-While-Revalidate: Return expired cache instantly, and fetch in background!
+            res.json(cachedDb.data);
+            performBackgroundRssFetch(targetUrl, feedUrl);
+            return;
           }
         }
-        console.log("[Server API] Scraping Detik Tag returned 0 articles, falling back to Detik Jatim RSS...");
-      } catch (scrapeError) {
-        console.log("[Server API] Scraping Detik Tag not available, falling back to Detik Jatim RSS");
-      }
-
-      // Fallback: Fetch Detik Jatim RSS and filter for Madiun
-      try {
-        const fallbackFeed = "https://www.detik.com/jatim/rss";
-        const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(fallbackFeed)}`;
-        const response = await fetchWithTimeout(proxyUrl, {}, 3000);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.status === 'ok' && Array.isArray(data.items)) {
-            const keywords = ["madiun", "caruban", "mejayan", "sogaten", "saradan"];
-            const filteredItems = data.items.filter((item: any) => {
-              const titleLower = (item.title || "").toLowerCase();
-              const contentLower = (item.description || item.content || "").toLowerCase();
-              return keywords.some(k => titleLower.includes(k) || contentLower.includes(k));
-            });
-            console.log(`[Server API] Detik RSS Fallback found ${filteredItems.length} Madiun news items.`);
-            const resBody = {
-              status: "ok",
-              items: filteredItems.length > 0 ? filteredItems : data.items.slice(0, 10) // fallback to standard news if filter is empty
-            };
-            rssCache[targetUrl] = {
-              data: resBody,
-              timestamp: Date.now()
-            };
-            return res.json(resBody);
-          }
-        }
-      } catch (fallbackError) {
-        console.log("[Server API] Detik Jatim RSS fallback not available");
+      } catch (cacheErr) {
+        console.error("[Server API] Error reading Firestore cache:", cacheErr);
       }
     }
 
+    // 3. Cache Miss: Perform synchronous fetch
+    console.log(`[Server API] Cache Miss for: ${targetUrl}. Performing fresh fetch...`);
     try {
-      // Attempt 1: Fetch via rss2json from server side
-      const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(targetUrl)}`;
-      const response = await fetchWithTimeout(proxyUrl, {}, 2000);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.status === 'ok') {
-          rssCache[targetUrl] = {
-            data: data,
-            timestamp: Date.now()
-          };
-          return res.json(data);
-        }
-      }
-      throw new Error("status_not_ok");
-    } catch (error) {
-      console.log(`[Server API] Info: rss2json proxy status not ok for ${targetUrl}, trying raw XML fetch...`);
-
-      // Attempt 2: Direct raw fetch of the RSS feed
-      try {
-        const response = await fetchWithTimeout(targetUrl, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "text/xml, application/xml, application/rss+xml, text/html"
-          }
-        }, 2000);
-        if (response.ok) {
-          const xmlText = await response.text();
-          if (xmlText && isValidRssXml(xmlText)) {
-            console.log(`[Server API] Direct raw XML fetch succeeded for ${targetUrl}`);
-            const resBody = { status: 'xml', xml: xmlText };
-            rssCache[targetUrl] = {
-              data: resBody,
-              timestamp: Date.now()
-            };
-            return res.json(resBody);
-          }
-        }
-      } catch (directError: any) {
-        console.log(`[Server API] Info: Direct fetch not available for ${targetUrl}`);
-      }
-
-      // Attempt 3: Fetch via corsproxy.io
-      try {
-        const corsProxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-        const response = await fetchWithTimeout(corsProxyUrl, {}, 1500);
-        if (response.ok) {
-          const xmlText = await response.text();
-          if (xmlText && isValidRssXml(xmlText)) {
-            console.log(`[Server API] corsproxy.io fetch succeeded for ${targetUrl}`);
-            const resBody = { status: 'xml', xml: xmlText };
-            rssCache[targetUrl] = {
-              data: resBody,
-              timestamp: Date.now()
-            };
-            return res.json(resBody);
-          }
-        }
-      } catch (corsProxyError: any) {
-        console.log(`[Server API] Info: corsproxy not available for ${targetUrl}`);
-      }
-
-      // If everything failed, try to serve high-quality cached fallback articles for the target site
-      const fallbacks = getFallbackArticles(targetUrl);
-      if (fallbacks.length > 0) {
-        console.log(`[Server API] Serving high-quality offline articles for ${targetUrl} (Bypassing block/CORS restrictions)`);
-        const resBody = {
-          status: 'ok',
-          items: fallbacks
-        };
-        rssCache[targetUrl] = {
-          data: resBody,
-          timestamp: Date.now()
-        };
-        return res.json(resBody);
-      }
-
-      // If everything failed and no fallbacks exist, return a status-200 JSON error response to prevent client-side HTML parsing crashes
-      return res.json({ 
-        status: 'error', 
+      const data = await fetchAndCacheRss(targetUrl);
+      return res.json(data);
+    } catch (fetchErr: any) {
+      return res.json({
+        status: 'error',
         items: [],
-        message: `Offline mode active for this source` 
+        message: fetchErr.message || 'Failed to fetch'
       });
     }
   });
+
 
   // Fetch and parse weather data directly from the official BMKG digital forecast XML for Madiun
   app.get("/api/weather", async (req, res) => {

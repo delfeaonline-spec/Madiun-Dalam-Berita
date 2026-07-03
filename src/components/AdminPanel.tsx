@@ -6,7 +6,8 @@ import {
   CitizenReport,
   RssRotationSource,
   ViralInfoItem,
-  ComplaintChannel
+  ComplaintChannel,
+  MadiunWeather
 } from '../types';
 import { 
   Lock, 
@@ -40,7 +41,9 @@ import {
   Youtube,
   Facebook,
   Instagram,
-  RefreshCw
+  RefreshCw,
+  CloudSun,
+  ExternalLink
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -61,6 +64,11 @@ interface AdminPanelProps {
   complaintChannels: ComplaintChannel[];
   setComplaintChannels: React.Dispatch<React.SetStateAction<ComplaintChannel[]>>;
   triggerToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
+  weatherData: MadiunWeather;
+  setWeatherData: React.Dispatch<React.SetStateAction<MadiunWeather>>;
+  autoGenerateTickerText: () => string;
+  portalBgUrl: string;
+  setPortalBgUrl: (url: string) => void;
 }
 
 export default function AdminPanel({
@@ -80,7 +88,12 @@ export default function AdminPanel({
   setViralFeed,
   complaintChannels,
   setComplaintChannels,
-  triggerToast
+  triggerToast,
+  weatherData,
+  setWeatherData,
+  autoGenerateTickerText,
+  portalBgUrl,
+  setPortalBgUrl
 }: AdminPanelProps) {
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -791,29 +804,342 @@ export default function AdminPanel({
         </div>
       </div>
 
-      {/* PORTAL FEATURES & TICKER MANAGER */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-sm" id="admin-ticker-editor">
-        <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2 mb-4">
-          <Settings className="h-4.5 w-4.5 text-slate-500" /> Kelola Teks Berita Berjalan (Status Ticker)
-        </h3>
-        <p className="text-xs text-slate-500 leading-relaxed mb-4">
-          Teks ini berjalan secara horizontal di bagian atas seluruh halaman situs untuk menyalurkan pengumuman darurat, prakiraan cuaca, atau agenda acara terbaru.
-        </p>
-        <div className="flex gap-3">
-          <input
-            type="text"
-            value={tickerText}
-            onChange={(e) => setTickerText(e.target.value)}
-            className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl py-2.5 px-4 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-semibold"
-            placeholder="Ketik teks pengumuman penting portal..."
-          />
-          <button
-            onClick={() => triggerToast('Pengumuman Ticker Berhasil Disimpan!', 'success')}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition duration-150 shadow"
-          >
-            Terapkan
-          </button>
+      {/* PORTAL FEATURES, TICKER & WEATHER MANAGER */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-sm space-y-8" id="admin-ticker-editor">
+        
+        {/* Ticker Section */}
+        <div>
+          <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center justify-between gap-2 mb-3">
+            <span className="flex items-center gap-2">
+              <Settings className="h-4.5 w-4.5 text-slate-500" /> Teks Berita Berjalan (Madiun Hari Ini)
+            </span>
+            <span className="text-[10px] bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Live Ticker</span>
+          </h3>
+          <p className="text-xs text-slate-500 leading-relaxed mb-4">
+            Teks ini berjalan secara horizontal di bagian atas seluruh halaman situs untuk menyalurkan pengumuman darurat, prakiraan cuaca, atau agenda acara terbaru.
+          </p>
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="text"
+                value={tickerText}
+                onChange={(e) => setTickerText(e.target.value)}
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl py-2.5 px-4 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-semibold"
+                placeholder="Ketik teks pengumuman penting portal..."
+              />
+              <button
+                onClick={() => triggerToast('Pengumuman Ticker Berhasil Disimpan!', 'success')}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition duration-150 shadow"
+              >
+                Terapkan
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  const generated = autoGenerateTickerText();
+                  if (generated) {
+                    triggerToast('Berhasil membuat ticker info hit secara otomatis!', 'success');
+                  }
+                }}
+                className="flex items-center gap-1.5 text-[10px] font-extrabold text-indigo-700 hover:text-white bg-indigo-50 hover:bg-indigo-600 border border-indigo-100 rounded-lg px-3 py-2 transition cursor-pointer"
+                title="Menyusun pengumuman berjalan secara pintar dari berita terbaru, aduan, dan cuaca"
+              >
+                <RefreshCw className="h-3 w-3 animate-spin-slow" />
+                <span>Generasi Otomatis "Madiun Hari Ini" (Trending & Cuaca)</span>
+              </button>
+            </div>
+          </div>
         </div>
+
+        <hr className="border-slate-100" />
+
+        {/* BMKG Weather Forecast Section */}
+        <div>
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4">
+            <div>
+              <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <CloudSun className="h-5 w-5 text-emerald-600" /> Prakiraan Cuaca Madiun Raya
+              </h3>
+              <p className="text-xs text-slate-500 leading-relaxed mt-1">
+                Atur prakiraan cuaca umum yang tampil pada header portal. Sinkronisasikan langsung dari data satelit BMKG Jawa Timur atau edit manual bila diperlukan.
+              </p>
+            </div>
+            
+            <button
+              type="button"
+              onClick={async () => {
+                triggerToast('Menghubungi satelit BMKG...', 'info');
+                try {
+                  const res = await fetch('/api/weather');
+                  if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.kota && data.kabupaten) {
+                      setWeatherData(data);
+                      triggerToast('Prakiraan cuaca berhasil diperbarui langsung dari BMKG!', 'success');
+                    } else {
+                      throw new Error('Data format error');
+                    }
+                  } else {
+                    throw new Error('Server returned error');
+                  }
+                } catch (err) {
+                  triggerToast('Gagal memuat cuaca dari BMKG, menggunakan simulasi offline terperinci', 'error');
+                }
+              }}
+              className="flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 text-emerald-700 font-extrabold py-2 px-3.5 rounded-xl text-xs border border-slate-200 shadow-sm transition shrink-0 cursor-pointer"
+              title="Ambil data perkiraan cuaca real-time dari BMKG"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span>Sinkronkan Cuaca dari BMKG</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-5 rounded-3xl border border-slate-150">
+            {/* Kota Madiun Weather Form */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
+                <span className="text-sm font-bold text-slate-800">🏢 Kota Madiun</span>
+                <span className="text-[9px] bg-slate-200 text-slate-600 font-bold px-1.5 py-0.5 rounded uppercase">Metropolitan</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Suhu</label>
+                  <input
+                    type="text"
+                    value={weatherData.kota.temp}
+                    onChange={(e) => setWeatherData({
+                      ...weatherData,
+                      kota: { ...weatherData.kota, temp: e.target.value }
+                    })}
+                    className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-bold text-slate-800"
+                    placeholder="Contoh: 31°C"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Kondisi</label>
+                  <select
+                    value={weatherData.kota.condition}
+                    onChange={(e) => {
+                      const cond = e.target.value;
+                      let icon = '☁️';
+                      if (cond === 'Cerah') icon = '☀️';
+                      else if (cond === 'Cerah Berawan') icon = '⛅';
+                      else if (cond === 'Hujan Ringan' || cond === 'Hujan Sedang') icon = '🌧️';
+                      else if (cond === 'Hujan Petir') icon = '⛈️';
+                      
+                      setWeatherData({
+                        ...weatherData,
+                        kota: { ...weatherData.kota, condition: cond, icon }
+                      });
+                    }}
+                    className="w-full bg-white border border-slate-200 rounded-xl py-2 px-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-bold text-slate-800"
+                  >
+                    <option value="Cerah">☀️ Cerah</option>
+                    <option value="Cerah Berawan">⛅ Cerah Berawan</option>
+                    <option value="Berawan">☁️ Berawan</option>
+                    <option value="Hujan Ringan">🌧️ Hujan Ringan</option>
+                    <option value="Hujan Sedang">🌧️ Hujan Sedang</option>
+                    <option value="Hujan Petir">⛈️ Hujan Petir</option>
+                    <option value="Kabut">🌫️ Kabut</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Kelembaban</label>
+                  <input
+                    type="text"
+                    value={weatherData.kota.humidity}
+                    onChange={(e) => setWeatherData({
+                      ...weatherData,
+                      kota: { ...weatherData.kota, humidity: e.target.value }
+                    })}
+                    className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-medium text-slate-700"
+                    placeholder="Contoh: 65%"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Kec. Angin</label>
+                  <input
+                    type="text"
+                    value={weatherData.kota.windSpeed}
+                    onChange={(e) => setWeatherData({
+                      ...weatherData,
+                      kota: { ...weatherData.kota, windSpeed: e.target.value }
+                    })}
+                    className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-medium text-slate-700"
+                    placeholder="Contoh: 12 km/j"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Kabupaten Madiun Weather Form */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
+                <span className="text-sm font-bold text-slate-800">🌳 Kabupaten Madiun (Caruban)</span>
+                <span className="text-[9px] bg-slate-200 text-slate-600 font-bold px-1.5 py-0.5 rounded uppercase">Caruban</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Suhu</label>
+                  <input
+                    type="text"
+                    value={weatherData.kabupaten.temp}
+                    onChange={(e) => setWeatherData({
+                      ...weatherData,
+                      kabupaten: { ...weatherData.kabupaten, temp: e.target.value }
+                    })}
+                    className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-bold text-slate-800"
+                    placeholder="Contoh: 29°C"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Kondisi</label>
+                  <select
+                    value={weatherData.kabupaten.condition}
+                    onChange={(e) => {
+                      const cond = e.target.value;
+                      let icon = '☁️';
+                      if (cond === 'Cerah') icon = '☀️';
+                      else if (cond === 'Cerah Berawan') icon = '⛅';
+                      else if (cond === 'Hujan Ringan' || cond === 'Hujan Sedang') icon = '🌧️';
+                      else if (cond === 'Hujan Petir') icon = '⛈️';
+                      
+                      setWeatherData({
+                        ...weatherData,
+                        kabupaten: { ...weatherData.kabupaten, condition: cond, icon }
+                      });
+                    }}
+                    className="w-full bg-white border border-slate-200 rounded-xl py-2 px-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-bold text-slate-800"
+                  >
+                    <option value="Cerah">☀️ Cerah</option>
+                    <option value="Cerah Berawan">⛅ Cerah Berawan</option>
+                    <option value="Berawan">☁️ Berawan</option>
+                    <option value="Hujan Ringan">🌧️ Hujan Ringan</option>
+                    <option value="Hujan Sedang">🌧️ Hujan Sedang</option>
+                    <option value="Hujan Petir">⛈️ Hujan Petir</option>
+                    <option value="Kabut">🌫️ Kabut</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Kelembaban</label>
+                  <input
+                    type="text"
+                    value={weatherData.kabupaten.humidity}
+                    onChange={(e) => setWeatherData({
+                      ...weatherData,
+                      kabupaten: { ...weatherData.kabupaten, humidity: e.target.value }
+                    })}
+                    className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-medium text-slate-700"
+                    placeholder="Contoh: 72%"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Kec. Angin</label>
+                  <input
+                    type="text"
+                    value={weatherData.kabupaten.windSpeed}
+                    onChange={(e) => setWeatherData({
+                      ...weatherData,
+                      kabupaten: { ...weatherData.kabupaten, windSpeed: e.target.value }
+                    })}
+                    className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-medium text-slate-700"
+                    placeholder="Contoh: 10 km/j"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-3 flex items-center justify-between text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+            <span>Sumber Resmi: <a href="https://www.bmkg.go.id" target="_blank" rel="noreferrer" className="text-emerald-600 hover:underline">bmkg.go.id</a></span>
+            <span>Pembaruan Terakhir: {weatherData.lastUpdated}</span>
+          </div>
+        </div>
+
+        <hr className="border-slate-100" />
+
+        {/* Interactive Portal Background Section */}
+        <div>
+          <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2 mb-2">
+            <Tv className="h-4.5 w-4.5 text-emerald-600" /> Latar Belakang Portal Interaktif (Banner Utama)
+          </h3>
+          <p className="text-xs text-slate-500 leading-relaxed mb-4">
+            Ubah atau sesuaikan gambar latar belakang (background) dari banner utama "Portal Interaktif" di halaman depan. Anda dapat mengunggah alamat URL baru atau menggunakan preset eksklusif "Madiun Dalam Berita".
+          </p>
+
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="text"
+                value={portalBgUrl}
+                onChange={(e) => setPortalBgUrl(e.target.value)}
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl py-2.5 px-4 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-mono text-slate-700"
+                placeholder="Masukkan URL gambar background (https://...)"
+              />
+              <button
+                onClick={() => triggerToast('Latar Belakang Portal Berhasil Disimpan!', 'success')}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition duration-150 shadow shrink-0"
+              >
+                Simpan URL
+              </button>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-150 flex flex-col md:flex-row items-center gap-4 justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-14 w-24 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 shrink-0 shadow-sm">
+                  <img
+                    src={portalBgUrl}
+                    alt="Pratinjau Background"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=600&q=80';
+                    }}
+                  />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-800">Pratinjau Latar Belakang</p>
+                  <p className="text-[10px] text-slate-500">Banner depan akan menyesuaikan secara real-time.</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPortalBgUrl('/src/assets/images/portal_bg_1783079800952.jpg');
+                    triggerToast('Menggunakan Preset Premium: Madiun Dalam Berita!', 'success');
+                  }}
+                  className="bg-white hover:bg-slate-150 text-slate-700 font-extrabold py-2 px-3.5 rounded-xl text-xs border border-slate-200 shadow-sm transition"
+                >
+                  📺 Preset "Madiun Dalam Berita"
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPortalBgUrl('');
+                    triggerToast('Menggunakan warna gradasi emerald bawaan!', 'info');
+                  }}
+                  className="bg-white hover:bg-slate-150 text-slate-700 font-extrabold py-2 px-3.5 rounded-xl text-xs border border-slate-200 shadow-sm transition"
+                >
+                  🟢 Gradasi Emerald Bawaan
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       {/* INTERACTIVE DATA MANAGER SUBNAV */}

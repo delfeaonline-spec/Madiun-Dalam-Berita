@@ -89,4 +89,19 @@ export interface ComplaintChannel {
   actionUrl?: string;
 }
 
+export interface WeatherInfo {
+  temp: string;
+  condition: string;
+  humidity: string;
+  windSpeed: string;
+  icon: string;
+}
+
+export interface MadiunWeather {
+  kota: WeatherInfo;
+  kabupaten: WeatherInfo;
+  source: string;
+  lastUpdated: string;
+}
+
 

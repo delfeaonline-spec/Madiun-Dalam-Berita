@@ -744,7 +744,7 @@ export default function App() {
   const [viralLocationFilter, setViralLocationFilter] = useState<'semua' | 'Kabupaten Madiun' | 'Kota Madiun'>('semua');
 
   // RSS News States
-  const [newsSource, setNewsSource] = useState<'portal' | 'rss'>('rss');
+  const [newsSource, setNewsSource] = useState<'portal' | 'rss'>('portal');
   const [rssNewsList, setRssNewsList] = useState<NewsItem[]>([]);
   const [isRssLoading, setIsRssLoading] = useState<boolean>(true);
   const [rssError, setRssError] = useState<string | null>(null);

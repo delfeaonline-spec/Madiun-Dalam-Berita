@@ -742,7 +742,6 @@ export default function App() {
 
   // General Filter / Search States
   const [searchQuery, setSearchQuery] = useState('');
-  const [newsFilter, setNewsFilter] = useState<string>('🔄 Rotasi Otomatis');
   const [jobTypeFilter, setJobTypeFilter] = useState<string>('Semua');
   const [umkmCategoryFilter, setUmkmCategoryFilter] = useState<string>('Semua');
   const [reportUrgencyFilter, setReportUrgencyFilter] = useState<string>('Semua');
@@ -760,6 +759,16 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('bm_news_source', newsSource);
   }, [newsSource]);
+
+  const [newsFilter, setNewsFilter] = useState<string>(() => {
+    const savedFilter = localStorage.getItem('bm_news_filter');
+    if (savedFilter) return savedFilter;
+    return newsSource === 'portal' ? 'Semua' : '🔄 Rotasi Otomatis';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('bm_news_filter', newsFilter);
+  }, [newsFilter]);
   const [rssNewsList, setRssNewsList] = useState<NewsItem[]>([]);
   const [isRssLoading, setIsRssLoading] = useState<boolean>(true);
   const [rssError, setRssError] = useState<string | null>(null);

@@ -3,26 +3,34 @@ import path from "path";
 import fs from "fs";
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, writeBatch, getDoc } from 'firebase/firestore';
+import firebaseConfig from "./firebase-applet-config.json";
 
 // Initialize Firebase server-side connection using the same config
 let db: any = null;
 try {
-  let firebaseConfigPath = path.join(process.cwd(), 'firebase-applet-config.json');
-  if (!fs.existsSync(firebaseConfigPath)) {
-    // Try checking parent directory (common for nested serverless functions like Vercel)
-    firebaseConfigPath = path.join(__dirname, '..', 'firebase-applet-config.json');
-  }
-  
-  if (fs.existsSync(firebaseConfigPath)) {
-    const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, 'utf-8'));
-    const firebaseApp = initializeApp(firebaseConfig);
-    db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
-    console.log("[Server Firebase] Successfully initialized server-side Firebase Firestore.");
-  } else {
-    console.error("[Server Firebase] Warning: firebase-applet-config.json not found at standard paths.");
-  }
+  const firebaseApp = initializeApp(firebaseConfig);
+  db = getFirestore(firebaseApp, (firebaseConfig as any).firestoreDatabaseId);
+  console.log("[Server Firebase] Successfully initialized server-side Firebase Firestore via static import.");
 } catch (firebaseErr) {
-  console.error("[Server Firebase] Error initializing server-side Firebase:", firebaseErr);
+  console.error("[Server Firebase] Error initializing server-side Firebase via static import, attempting fallback:", firebaseErr);
+  try {
+    let firebaseConfigPath = path.join(process.cwd(), 'firebase-applet-config.json');
+    if (!fs.existsSync(firebaseConfigPath)) {
+      // Try checking parent directory (common for nested serverless functions like Vercel)
+      firebaseConfigPath = path.join(__dirname, '..', 'firebase-applet-config.json');
+    }
+    
+    if (fs.existsSync(firebaseConfigPath)) {
+      const dynamicConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, 'utf-8'));
+      const firebaseApp = initializeApp(dynamicConfig);
+      db = getFirestore(firebaseApp, dynamicConfig.firestoreDatabaseId);
+      console.log("[Server Firebase] Successfully initialized server-side Firebase Firestore via dynamic fallback.");
+    } else {
+      console.error("[Server Firebase] Warning: firebase-applet-config.json not found at standard paths.");
+    }
+  } catch (fallbackErr) {
+    console.error("[Server Firebase] Critical error initializing Firebase:", fallbackErr);
+  }
 }
 
 async function serverFetchCollection(collectionName: string) {

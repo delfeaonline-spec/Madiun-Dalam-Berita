@@ -408,7 +408,15 @@ export default function App() {
   // ==========================================
   // STATE MANAGEMENT
   // ==========================================
-  const [activeTab, setActiveTab] = useState<'news' | 'jobs' | 'umkm' | 'reports' | 'admin' | 'cctv'>('news');
+  const [activeTab, setActiveTab] = useState<'news' | 'jobs' | 'umkm' | 'reports' | 'admin' | 'cctv'>(() => {
+    const saved = localStorage.getItem('bm_active_tab');
+    const allowed = ['news', 'jobs', 'umkm', 'reports', 'admin', 'cctv'];
+    return (saved && allowed.includes(saved)) ? (saved as any) : 'news';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('bm_active_tab', activeTab);
+  }, [activeTab]);
   
   const [tickerText, setTickerText] = useState<string>(() => {
     return localStorage.getItem('bm_ticker_text') || 'Menghubungkan satelit cuaca BMKG dan info hit viral Madiun Raya...';
@@ -744,7 +752,14 @@ export default function App() {
   const [viralLocationFilter, setViralLocationFilter] = useState<'semua' | 'Kabupaten Madiun' | 'Kota Madiun'>('semua');
 
   // RSS News States
-  const [newsSource, setNewsSource] = useState<'portal' | 'rss'>('portal');
+  const [newsSource, setNewsSource] = useState<'portal' | 'rss'>(() => {
+    const saved = localStorage.getItem('bm_news_source');
+    return (saved === 'portal' || saved === 'rss') ? saved : 'portal';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('bm_news_source', newsSource);
+  }, [newsSource]);
   const [rssNewsList, setRssNewsList] = useState<NewsItem[]>([]);
   const [isRssLoading, setIsRssLoading] = useState<boolean>(true);
   const [rssError, setRssError] = useState<string | null>(null);

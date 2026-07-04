@@ -1122,7 +1122,7 @@ export default function AdminPanel({
                 <button
                   type="button"
                   onClick={() => {
-                    setPortalBgUrl('/src/assets/images/portal_bg_1783079800952.jpg');
+                    setPortalBgUrl('/assets/images/portal_bg_1783079800952.jpg');
                     triggerToast('Menggunakan Preset Premium: Madiun Dalam Berita!', 'success');
                   }}
                   className="bg-white hover:bg-slate-150 text-slate-700 font-extrabold py-2 px-3.5 rounded-xl text-xs border border-slate-200 shadow-sm transition"

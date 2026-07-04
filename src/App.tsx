@@ -429,7 +429,11 @@ export default function App() {
 
   // Customizable Sub Hero Banner background image URL
   const [portalBgUrl, setPortalBgUrl] = useState<string>(() => {
-    return localStorage.getItem('bm_portal_bg_url') || '/src/assets/images/portal_bg_1783079800952.jpg';
+    let saved = localStorage.getItem('bm_portal_bg_url') || '/assets/images/portal_bg_1783079800952.jpg';
+    if (saved.startsWith('/src/assets/images/')) {
+      saved = saved.replace('/src/assets/images/', '/assets/images/');
+    }
+    return saved;
   });
 
   useEffect(() => {
@@ -691,7 +695,7 @@ export default function App() {
             id: 'portal',
             tickerText: 'Menghubungkan satelit cuaca BMKG dan info hit viral Madiun Raya...',
             cctvUrl: 'https://cctv.villabs.id/cctv/',
-            portalBgUrl: '/src/assets/images/portal_bg_1783079800952.jpg'
+            portalBgUrl: '/assets/images/portal_bg_1783079800952.jpg'
           };
           await saveDocument('settings', 'portal', defaultSettings);
           portalSettings = defaultSettings;
@@ -702,8 +706,12 @@ export default function App() {
         setCctvUrl(portalSettings.cctvUrl);
         localStorage.setItem('bm_cctv_url', portalSettings.cctvUrl);
         
-        setPortalBgUrl(portalSettings.portalBgUrl);
-        localStorage.setItem('bm_portal_bg_url', portalSettings.portalBgUrl);
+        let bgUrl = portalSettings.portalBgUrl || '/assets/images/portal_bg_1783079800952.jpg';
+        if (bgUrl.startsWith('/src/assets/images/')) {
+          bgUrl = bgUrl.replace('/src/assets/images/', '/assets/images/');
+        }
+        setPortalBgUrl(bgUrl);
+        localStorage.setItem('bm_portal_bg_url', bgUrl);
 
       } catch (err) {
         console.error("[Sync DB] Failed to load synchronized database from server:", err);

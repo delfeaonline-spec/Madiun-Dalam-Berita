@@ -761,9 +761,24 @@ export default function App() {
   }, [newsSource]);
 
   const [newsFilter, setNewsFilter] = useState<string>(() => {
+    const savedSource = localStorage.getItem('bm_news_source');
+    const source = (savedSource === 'portal' || savedSource === 'rss') ? savedSource : 'portal';
+    
     const savedFilter = localStorage.getItem('bm_news_filter');
-    if (savedFilter) return savedFilter;
-    return newsSource === 'portal' ? 'Semua' : '🔄 Rotasi Otomatis';
+    if (savedFilter) {
+      if (source === 'portal') {
+        const portalCategories = ['Semua', 'Pembangunan', 'Kuliner', 'Budaya', 'Ekonomi'];
+        if (portalCategories.includes(savedFilter)) {
+          return savedFilter;
+        }
+      } else {
+        const rssCategories = ['🔄 Rotasi Otomatis', 'Radar Madiun Kota', 'Radar Madiun Kab', 'Detik Madiun', 'Pemkab Madiun', 'Pemkot Madiun'];
+        if (rssCategories.includes(savedFilter)) {
+          return savedFilter;
+        }
+      }
+    }
+    return source === 'portal' ? 'Semua' : '🔄 Rotasi Otomatis';
   });
 
   useEffect(() => {

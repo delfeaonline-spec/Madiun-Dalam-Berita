@@ -104,6 +104,18 @@
         "portalBgUrl": { "type": "string", "description": "Tautan latar belakang banner" }
       },
       "required": ["tickerText", "cctvUrl", "portalBgUrl"]
+    },
+    "RssCacheItem": {
+      "title": "RssCacheItem",
+      "description": "Penyimpanan cache XML/JSON RSS eksternal",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID cache (Base64 dari URL target)" },
+        "targetUrl": { "type": "string", "description": "URL target feed berita" },
+        "timestamp": { "type": "number", "description": "Waktu UTC penyimpanan cache" },
+        "data": { "type": "object", "description": "Hasil parse data feed RSS dalam format terstruktur" }
+      },
+      "required": ["id", "targetUrl", "timestamp", "data"]
     }
   },
   "firestore": {
@@ -130,6 +142,10 @@
     "/settings/{settingId}": {
       "schema": "SettingsPortal",
       "description": "Konfigurasi portal umum"
+    },
+    "/rssCache/{cacheId}": {
+      "schema": "RssCacheItem",
+      "description": "Cache XML/JSON RSS berita eksternal"
     }
   }
 }

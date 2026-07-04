@@ -707,11 +707,21 @@ export default function App() {
         localStorage.setItem('bm_cctv_url', portalSettings.cctvUrl);
         
         let bgUrl = portalSettings.portalBgUrl || '/assets/images/portal_bg_1783079800952.jpg';
+        let bgNeedsSave = false;
         if (bgUrl.startsWith('/src/assets/images/')) {
           bgUrl = bgUrl.replace('/src/assets/images/', '/assets/images/');
+          bgNeedsSave = true;
         }
         setPortalBgUrl(bgUrl);
         localStorage.setItem('bm_portal_bg_url', bgUrl);
+
+        if (bgNeedsSave) {
+          console.log("[Sync DB] Auto-migrating old background URL in Firestore to production path...");
+          await saveDocument('settings', 'portal', {
+            ...portalSettings,
+            portalBgUrl: bgUrl
+          });
+        }
 
       } catch (err) {
         console.error("[Sync DB] Failed to load synchronized database from server:", err);
@@ -2049,7 +2059,7 @@ export default function App() {
           style={
             portalBgUrl 
               ? { 
-                  backgroundImage: `linear-gradient(to right, rgba(2, 44, 34, 0.95) 40%, rgba(2, 44, 34, 0.6) 80%, rgba(2, 44, 34, 0.3) 100%), url(${portalBgUrl})`,
+                  backgroundImage: `linear-gradient(to right, rgba(2, 44, 34, 0.85) 30%, rgba(2, 44, 34, 0.5) 75%, rgba(2, 44, 34, 0.2) 100%), url(${portalBgUrl})`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center'
                 }

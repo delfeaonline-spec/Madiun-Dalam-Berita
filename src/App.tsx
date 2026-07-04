@@ -742,13 +742,46 @@ export default function App() {
 
   // General Filter / Search States
   const [searchQuery, setSearchQuery] = useState('');
-  const [jobTypeFilter, setJobTypeFilter] = useState<string>('Semua');
-  const [umkmCategoryFilter, setUmkmCategoryFilter] = useState<string>('Semua');
-  const [reportUrgencyFilter, setReportUrgencyFilter] = useState<string>('Semua');
+  
+  const [jobTypeFilter, setJobTypeFilter] = useState<string>(() => {
+    return localStorage.getItem('bm_job_type_filter') || 'Semua';
+  });
+  useEffect(() => {
+    localStorage.setItem('bm_job_type_filter', jobTypeFilter);
+  }, [jobTypeFilter]);
+
+  const [umkmCategoryFilter, setUmkmCategoryFilter] = useState<string>(() => {
+    return localStorage.getItem('bm_umkm_category_filter') || 'Semua';
+  });
+  useEffect(() => {
+    localStorage.setItem('bm_umkm_category_filter', umkmCategoryFilter);
+  }, [umkmCategoryFilter]);
+
+  const [reportUrgencyFilter, setReportUrgencyFilter] = useState<string>(() => {
+    return localStorage.getItem('bm_report_urgency_filter') || 'Semua';
+  });
+  useEffect(() => {
+    localStorage.setItem('bm_report_urgency_filter', reportUrgencyFilter);
+  }, [reportUrgencyFilter]);
 
   // Viral Social Media Filter States
-  const [viralPlatformFilter, setViralPlatformFilter] = useState<'semua' | 'youtube' | 'tiktok' | 'instagram' | 'facebook'>('semua');
-  const [viralLocationFilter, setViralLocationFilter] = useState<'semua' | 'Kabupaten Madiun' | 'Kota Madiun'>('semua');
+  const [viralPlatformFilter, setViralPlatformFilter] = useState<'semua' | 'youtube' | 'tiktok' | 'instagram' | 'facebook'>(() => {
+    const saved = localStorage.getItem('bm_viral_platform_filter');
+    const allowed = ['semua', 'youtube', 'tiktok', 'instagram', 'facebook'];
+    return (saved && allowed.includes(saved)) ? (saved as any) : 'semua';
+  });
+  useEffect(() => {
+    localStorage.setItem('bm_viral_platform_filter', viralPlatformFilter);
+  }, [viralPlatformFilter]);
+
+  const [viralLocationFilter, setViralLocationFilter] = useState<'semua' | 'Kabupaten Madiun' | 'Kota Madiun'>(() => {
+    const saved = localStorage.getItem('bm_viral_location_filter');
+    const allowed = ['semua', 'Kabupaten Madiun', 'Kota Madiun'];
+    return (saved && allowed.includes(saved)) ? (saved as any) : 'semua';
+  });
+  useEffect(() => {
+    localStorage.setItem('bm_viral_location_filter', viralLocationFilter);
+  }, [viralLocationFilter]);
 
   // RSS News States
   const [newsSource, setNewsSource] = useState<'portal' | 'rss'>(() => {

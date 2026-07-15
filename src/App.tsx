@@ -36,13 +36,15 @@ import {
   Instagram,
   TrendingUp,
   Tv,
-  Video
+  Video,
+  FileText
 } from 'lucide-react';
 
 import { NewsItem, JobItem, UMKMItem, CitizenReport, RssRotationSource, ViralInfoItem, ComplaintChannel, MadiunWeather } from './types';
 import AdminPanel from './components/AdminPanel';
 import MapModal from './components/MapModal';
 import { fetchCollectionData, saveDocument, syncListToCollection } from './lib/firebase';
+import { generateSystemRisalahPDF } from './utils/pdfGenerator';
 
 // ==========================================
 // INITIAL MOCK DATA
@@ -530,6 +532,11 @@ export default function App() {
     return saved ? JSON.parse(saved) : INITIAL_VIRAL_FEED;
   });
 
+  const [deletedViralIds, setDeletedViralIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem('bm_deleted_viral_ids');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   // Track whether we have successfully synchronized from the Firebase Firestore database
   const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
 
@@ -581,6 +588,33 @@ export default function App() {
   const updateViralFeed = (updater: ViralInfoItem[] | ((prev: ViralInfoItem[]) => ViralInfoItem[])) => {
     setViralFeed(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
+      
+      // Detect deleted items by comparing prev and next
+      const nextIds = new Set(next.map(item => item.id.toString()));
+      const deletedIds = prev
+        .filter(item => !nextIds.has(item.id.toString()))
+        .map(item => item.id.toString());
+         
+      if (deletedIds.length > 0) {
+        setDeletedViralIds(current => {
+          const updated = Array.from(new Set([...current, ...deletedIds]));
+          localStorage.setItem('bm_deleted_viral_ids', JSON.stringify(updated));
+          
+          // Also save to Firestore
+          if (hasLoadedFromServer) {
+            saveDocument('settings', 'portal', {
+              id: 'portal',
+              tickerText,
+              cctvUrl,
+              portalBgUrl,
+              deletedViralIds: updated
+            }).catch(err => console.error("Error saving deleted viral IDs:", err));
+          }
+          
+          return updated;
+        });
+      }
+
       localStorage.setItem('bm_viral_feed', JSON.stringify(next));
       if (hasLoadedFromServer) {
         syncListToCollection<ViralInfoItem>('viralFeed', next);
@@ -597,7 +631,8 @@ export default function App() {
         id: 'portal',
         tickerText: text,
         cctvUrl,
-        portalBgUrl
+        portalBgUrl,
+        deletedViralIds
       });
     }
   };
@@ -610,7 +645,8 @@ export default function App() {
         id: 'portal',
         tickerText,
         cctvUrl: url,
-        portalBgUrl
+        portalBgUrl,
+        deletedViralIds
       });
     }
   };
@@ -623,7 +659,8 @@ export default function App() {
         id: 'portal',
         tickerText,
         cctvUrl,
-        portalBgUrl: url
+        portalBgUrl: url,
+        deletedViralIds
       });
     }
   };
@@ -723,11 +760,19 @@ export default function App() {
         setPortalBgUrl(bgUrl);
         localStorage.setItem('bm_portal_bg_url', bgUrl);
 
+        const serverDeletedIds = portalSettings?.deletedViralIds || [];
+        setDeletedViralIds(prev => {
+          const combined = Array.from(new Set([...prev, ...serverDeletedIds]));
+          localStorage.setItem('bm_deleted_viral_ids', JSON.stringify(combined));
+          return combined;
+        });
+
         if (bgNeedsSave) {
           console.log("[Sync DB] Auto-migrating old background URL in Firestore to production path...");
           await saveDocument('settings', 'portal', {
             ...portalSettings,
-            portalBgUrl: bgUrl
+            portalBgUrl: bgUrl,
+            deletedViralIds: serverDeletedIds
           });
         }
 
@@ -936,22 +981,34 @@ export default function App() {
         };
       });
 
-      // Filter out INITIAL_VIRAL_FEED fallback items that have the same title to avoid duplicates
-      const existingTitles = new Set(realViralItems.map(item => item.title.toLowerCase()));
-      const fallbackItems = INITIAL_VIRAL_FEED.filter(item => !existingTitles.has(item.title.toLowerCase()));
+      // Filter out deleted items, and merge custom changes or new items seamlessly without resetting default/fallback items.
+      const deletedSet = new Set(deletedViralIds.map(id => id.toString()));
+      const existingIds = new Set(viralFeed.map(item => item.id.toString()));
+      const existingTitles = new Set(viralFeed.map(item => item.title.toLowerCase()));
 
-      // Identify and preserve any custom additions from the admin dashboard (not matching RSS and not matching fallback)
-      const fallbackTitles = new Set(INITIAL_VIRAL_FEED.map(item => item.title.toLowerCase()));
-      const customAdminItems = viralFeed.filter(item => {
-        const isNotFallback = !fallbackTitles.has(item.title.toLowerCase());
-        const isNotRss = !existingTitles.has(item.title.toLowerCase());
-        return isNotFallback && isNotRss;
+      // Filter and prepare RSS items that are not deleted and do not already exist
+      const filteredRealViralItems = realViralItems.filter(item => {
+        const idStr = item.id.toString();
+        const titleLower = item.title.toLowerCase();
+        return !deletedSet.has(idStr) && !existingIds.has(idStr) && !existingTitles.has(titleLower);
       });
 
-      // Keep custom admin-created posts at the front, followed by newly loaded real-time RSS social news, followed by fallback items
-      setViralFeed([...customAdminItems, ...realViralItems, ...fallbackItems]);
+      // Filter and prepare fallback items that are not deleted and do not already exist
+      const filteredFallbackItems = INITIAL_VIRAL_FEED.filter(item => {
+        const idStr = item.id.toString();
+        const titleLower = item.title.toLowerCase();
+        return !deletedSet.has(idStr) && !existingIds.has(idStr) && !existingTitles.has(titleLower);
+      });
+
+      // Ensure currently valid items in current state are kept (filtering deletedSet just in case)
+      const currentValidItems = viralFeed.filter(item => !deletedSet.has(item.id.toString()));
+
+      // Combine and set the final list of viral items
+      const updatedFeed = [...currentValidItems, ...filteredRealViralItems, ...filteredFallbackItems];
+      setViralFeed(updatedFeed);
+      localStorage.setItem('bm_viral_feed', JSON.stringify(updatedFeed));
     }
-  }, [rssNewsList]);
+  }, [rssNewsList, deletedViralIds]);
 
   // Function to compile and generate "Madiun Hari Ini" ticker from hot/viral/weather info
   const autoGenerateTickerText = (
@@ -2161,6 +2218,13 @@ export default function App() {
                 className="bg-white hover:bg-slate-100 text-emerald-950 font-bold px-4 py-2.5 rounded-xl text-xs transition duration-200 flex items-center shadow-md shadow-emerald-950/20"
               >
                 <Plus className="h-4 w-4 mr-1.5" /> Daftarkan Lapak UMKM
+              </button>
+              <button 
+                onClick={() => generateSystemRisalahPDF()}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition duration-200 flex items-center shadow-md shadow-emerald-900/20 animate-pulse"
+                title="Unduh Resume Spesifikasi, Arsitektur, & Risalah Topologi Sistem (PDF)"
+              >
+                <FileText className="h-4 w-4 mr-1.5" /> Risalah & Topologi (PDF)
               </button>
             </div>
           </div>
@@ -3791,6 +3855,7 @@ export default function App() {
               <li><button onClick={() => handleTabChange('umkm')} className="hover:text-white transition">Direktori Lapak UMKM</button></li>
               <li><button onClick={() => handleTabChange('reports')} className="hover:text-white transition">Laporan Aduan Warga</button></li>
               <li><button onClick={() => handleTabChange('admin')} className="text-emerald-400 hover:text-emerald-300 font-bold transition flex items-center gap-1">🔒 Kelola Portal (Admin)</button></li>
+              <li><button onClick={() => generateSystemRisalahPDF()} className="text-cyan-400 hover:text-cyan-300 font-bold transition flex items-center gap-1">📄 Unduh Risalah & Topologi (PDF)</button></li>
               <li><button onClick={() => setIsDisclaimerOpen(true)} className="text-amber-400 hover:text-amber-300 font-bold transition flex items-center gap-1">⚖️ Disclaimer & Hak Cipta</button></li>
             </ul>
           </div>
